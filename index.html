@@ -1,0 +1,1276 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Masters of the Way</title>
+<style>
+  :root {
+    --bg: #100e0c;
+    --panel: #1a1714;
+    --panel2: #221e19;
+    --ink: #e8e0d0;
+    --dim: #9a8f7c;
+    --red: #c94f3d;
+    --gold: #d9a441;
+    --border: #383029;
+    --boxing: #c94f3d;
+    --karate: #cfc9b8;
+    --judo: #4a7ab5;
+    --bjj: #8a63c9;
+    --muaythai: #d9a441;
+    --taekwondo: #4aa58a;
+    --neutral: #9a8f7c;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: 16px; line-height: 1.45;
+    min-height: 100vh;
+  }
+  button { font: inherit; cursor: pointer; }
+  .screen { max-width: 860px; margin: 0 auto; padding: 16px 14px 60px; }
+  h1 {
+    font-variant: small-caps; letter-spacing: 6px; text-align: center;
+    color: var(--gold); font-weight: normal; font-size: 32px; margin: 40px 0 4px;
+    text-shadow: 0 0 34px rgba(217, 164, 65, .3);
+  }
+  .sub { text-align: center; color: var(--dim); font-style: italic; margin-bottom: 30px; }
+  h2 {
+    font-variant: small-caps; letter-spacing: 3px; color: var(--gold);
+    font-weight: normal; font-size: 20px; margin: 26px 0 10px; text-align: center;
+  }
+  .menu-btn {
+    display: block; width: 100%; max-width: 420px; margin: 10px auto;
+    padding: 14px 18px; background: var(--panel); color: var(--ink);
+    border: 1px solid var(--border); border-radius: 8px; text-align: left;
+    transition: border-color .15s, transform .15s;
+  }
+  .menu-btn:hover { border-color: var(--gold); transform: translateX(2px); }
+  .menu-btn small { display: block; color: var(--dim); }
+  .back { background: none; border: none; color: var(--dim); text-decoration: underline; padding: 8px; }
+
+  /* fighters list */
+  .fighter-card {
+    display: block; width: 100%; max-width: 520px; margin: 10px auto; padding: 12px 16px;
+    background: var(--panel); border: 1px solid var(--border); border-radius: 8px;
+    text-align: left; color: var(--ink); transition: border-color .15s;
+  }
+  .fighter-card:hover { border-color: var(--gold); }
+  .fighter-card .fname { font-size: 17px; }
+  .fighter-card .fart { font-variant: small-caps; letter-spacing: 1px; }
+  .fighter-card .fdesc { color: var(--dim); font-size: 14px; font-style: italic; }
+
+  /* deck builder */
+  #builder-stats {
+    position: sticky; top: 0; z-index: 4; background: var(--bg);
+    padding: 10px 0; border-bottom: 1px solid var(--border); margin-bottom: 10px;
+    font-size: 14px; text-align: center;
+  }
+  #builder-stats b { color: var(--gold); font-weight: normal; }
+  #builder-stats .warn { color: var(--red); }
+  #builder-stats .ok { color: #7fae6a; }
+  .art-section { margin: 18px 0 6px; }
+  .art-head {
+    font-variant: small-caps; letter-spacing: 2px; font-size: 17px;
+    border-bottom: 1px solid var(--border); padding-bottom: 4px; margin-bottom: 8px;
+  }
+  .pool-row {
+    display: flex; align-items: center; gap: 8px; padding: 6px 4px;
+    border-bottom: 1px dotted #2a251f; font-size: 14px;
+  }
+  .pool-row .pname { flex: 1 1 auto; min-width: 0; }
+  .pool-row .ptext { color: var(--dim); font-size: 12.5px; }
+  .pool-row .pcost { color: var(--gold); white-space: nowrap; }
+  .cnt-btn {
+    width: 30px; height: 30px; border-radius: 6px; border: 1px solid var(--border);
+    background: var(--panel); color: var(--ink); font-size: 16px; line-height: 1;
+  }
+  .cnt-btn:disabled { opacity: .3; cursor: default; }
+  .cnt { width: 20px; text-align: center; color: var(--gold); }
+  .locked { opacity: .45; }
+  .locknote { color: var(--dim); font-size: 12px; font-style: italic; }
+
+  /* duel screen */
+  #duel { max-width: 900px; margin: 0 auto; padding: 8px 10px 20px; display: none; }
+  .fpanel {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 10px;
+    padding: 8px 12px; margin: 6px 0;
+  }
+  .fpanel.active { border-color: var(--gold); box-shadow: 0 0 16px rgba(217,164,65,.12); }
+  .frow { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+  .frow .name { font-size: 16px; }
+  .frow .style { font-variant: small-caps; font-size: 13px; }
+  .frow .mastery { color: var(--gold); font-size: 12px; font-style: italic; }
+  .hpbar { height: 12px; background: #2a1512; border-radius: 6px; overflow: hidden; margin: 5px 0 3px; position: relative; }
+  .hpfill { height: 100%; background: linear-gradient(90deg, #a83a2a, #c94f3d); border-radius: 6px; transition: width .5s ease; }
+  .stats { font-size: 13px; color: var(--dim); display: flex; gap: 14px; flex-wrap: wrap; }
+  .stats b { color: var(--ink); font-weight: normal; }
+  .statuses { font-size: 12px; margin-top: 2px; min-height: 16px; }
+  .status-chip {
+    display: inline-block; padding: 1px 8px; margin: 1px 4px 1px 0; border-radius: 10px;
+    background: var(--panel2); border: 1px solid var(--border); color: var(--dim);
+  }
+  .status-chip.bad { color: var(--red); border-color: #5a2f28; }
+  .status-chip.good { color: #7fae6a; border-color: #34432c; }
+
+  /* arena */
+  #arena {
+    background: var(--panel2); border: 1px solid var(--border); border-radius: 10px;
+    padding: 10px 12px; margin: 6px 0; text-align: center;
+  }
+  #rangeviz { display: flex; justify-content: center; gap: 6px; margin-bottom: 6px; }
+  .zone {
+    flex: 1 1 0; max-width: 170px; padding: 6px 4px; border-radius: 8px;
+    border: 1px dashed var(--border); color: var(--dim);
+    font-variant: small-caps; font-size: 13px; letter-spacing: 1px;
+    transition: all .35s ease;
+  }
+  .zone.on { border-style: solid; border-color: var(--gold); color: var(--gold); background: rgba(217,164,65,.07); }
+  #topnote { font-size: 12.5px; color: var(--dim); font-style: italic; min-height: 17px; }
+  #log { font-size: 13.5px; color: var(--dim); min-height: 54px; margin-top: 6px; text-align: left; }
+  #log .l { animation: lrise .3s ease-out both; padding: 1px 0; }
+  #log .l.hit { color: var(--ink); }
+  @keyframes lrise { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; } }
+
+  /* hand */
+  #handwrap { margin-top: 8px; }
+  #hand { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+  .card {
+    width: 138px; min-height: 148px; background: var(--panel);
+    border: 1px solid var(--border); border-radius: 9px; padding: 7px 9px;
+    text-align: left; position: relative; color: var(--ink);
+    display: flex; flex-direction: column; transition: transform .15s, border-color .15s, opacity .3s;
+    border-top: 3px solid var(--dim);
+  }
+  .card .top { display: flex; justify-content: space-between; align-items: baseline; gap: 4px; }
+  .card .cname { font-size: 13.5px; line-height: 1.2; }
+  .card .ccost {
+    font-size: 15px; color: var(--gold); min-width: 18px; height: 22px; text-align: center;
+  }
+  .card .cart { font-size: 10.5px; font-variant: small-caps; letter-spacing: 1px; margin: 1px 0 3px; }
+  .card .cranges { font-size: 10.5px; color: var(--dim); margin-bottom: 4px; }
+  .card .ctext { font-size: 12px; color: #c6bca8; flex: 1 1 auto; }
+  .card.playable { cursor: pointer; }
+  .card.playable:hover { transform: translateY(-5px); border-color: var(--gold); }
+  .card.dead { opacity: .38; }
+  button.card { font: inherit; }
+  #controls { text-align: center; margin-top: 10px; }
+  #endturn {
+    padding: 11px 34px; border-radius: 8px; border: 1px solid var(--gold);
+    background: rgba(217,164,65,.1); color: var(--gold);
+    font-variant: small-caps; letter-spacing: 2px; font-size: 16px;
+  }
+  #endturn:disabled { opacity: .35; }
+  #stamina-pips { display: inline-block; margin-left: 12px; letter-spacing: 3px; color: var(--gold); }
+
+  /* overlays */
+  .overlay {
+    position: fixed; inset: 0; z-index: 50; background: rgba(10, 8, 6, .93);
+    display: flex; align-items: center; justify-content: center; text-align: center;
+    padding: 20px;
+  }
+  .overlay .obox { max-width: 440px; }
+  .overlay h2 { font-size: 26px; }
+  .overlay p { color: var(--dim); }
+  .overlay button { margin-top: 14px; }
+
+  /* floaters */
+  .floater {
+    position: absolute; font-size: 20px; font-weight: bold; pointer-events: none;
+    animation: floatup 1s ease-out both; z-index: 20; text-shadow: 0 2px 6px #000;
+  }
+  @keyframes floatup { from { opacity: 1; transform: translateY(0); } to { opacity: 0; transform: translateY(-34px); } }
+  .shake { animation: shake .35s ease; }
+  @keyframes shake { 0%,100% { transform: none; } 25% { transform: translateX(-5px); } 75% { transform: translateX(5px); } }
+
+  /* ---- effects ---- */
+  .screen { animation: fadein .4s ease-out both; }
+  @keyframes fadein { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+  .pico { width: 44px; height: 44px; flex: 0 0 auto; }
+  .pico svg { width: 100%; height: 100%; display: block; }
+  .fighter-card { display: flex; gap: 14px; align-items: center; }
+  .fighter-card .pico { width: 62px; height: 62px; }
+  .fighter-card .fbody { flex: 1 1 auto; min-width: 0; }
+  .fighter-card .quote { color: var(--gold); font-style: italic; font-size: 13px; margin-top: 3px; }
+  #banner {
+    position: fixed; top: 38%; left: 0; right: 0; z-index: 30; text-align: center;
+    font-variant: small-caps; letter-spacing: 6px; font-size: 30px; color: var(--gold);
+    text-shadow: 0 0 34px rgba(217,164,65,.55); pointer-events: none; opacity: 0;
+  }
+  #banner.show { animation: bannersweep 1.1s ease-in-out both; }
+  @keyframes bannersweep {
+    0% { opacity: 0; transform: translateX(-44px); }
+    20% { opacity: 1; transform: none; }
+    78% { opacity: 1; }
+    100% { opacity: 0; transform: translateX(44px); }
+  }
+  .card.zoomout { transform: scale(1.14) translateY(-16px) !important; opacity: 0 !important; transition: all .2s ease-in !important; }
+  .impact {
+    position: absolute; inset: 0; border-radius: 10px; pointer-events: none;
+    background: radial-gradient(circle at 50% 45%, rgba(201,79,61,.4), transparent 70%);
+    animation: impactfade .45s ease-out both;
+  }
+  @keyframes impactfade { from { opacity: 1; } to { opacity: 0; } }
+  .kotext {
+    font-size: 56px; font-variant: small-caps; letter-spacing: 8px; color: var(--red);
+    text-shadow: 0 0 44px rgba(201,79,61,.6); margin: 0 0 6px;
+    animation: kopunch .5s cubic-bezier(.2, 2.2, .4, 1) both;
+  }
+  @keyframes kopunch { from { transform: scale(2.6); opacity: 0; } to { transform: none; opacity: 1; } }
+  .zone .who { display: block; font-size: 15px; letter-spacing: 2px; min-height: 20px; }
+  .hpfill { transition: width .5s ease, background .5s; }
+  .hpbar.low .hpfill { background: linear-gradient(90deg, #7a1f14, #a83a2a); animation: hppulse 1s ease-in-out infinite; }
+  @keyframes hppulse { 0%, 100% { filter: brightness(1); } 50% { filter: brightness(1.5); } }
+
+  /* ---- mobile ---- */
+  @media (max-width: 560px) {
+    body { font-size: 15px; }
+    #duel { padding: 6px 6px 14px; }
+    .fpanel { padding: 7px 9px; margin: 5px 0; }
+    .card { width: calc(33.33% - 6px); min-width: 0; min-height: 132px; padding: 6px 7px; }
+    .card .cname { font-size: 11.5px; }
+    .card .ctext { font-size: 10px; }
+    .card .cranges { font-size: 9.5px; }
+    .card .cart { font-size: 9.5px; }
+    .zone { font-size: 10.5px; padding: 5px 2px; }
+    .zone .who { font-size: 13px; }
+    h1 { font-size: 24px; letter-spacing: 4px; }
+    .stats { gap: 9px; font-size: 11.5px; }
+    .statuses { font-size: 11px; }
+    .pico { width: 36px; height: 36px; }
+    .fighter-card .pico { width: 52px; height: 52px; }
+    #banner { font-size: 22px; letter-spacing: 4px; }
+    .kotext { font-size: 40px; letter-spacing: 5px; }
+    #log { font-size: 12.5px; min-height: 48px; }
+    #endturn { width: 100%; padding: 14px 0; font-size: 17px; }
+    #stamina-pips { display: block; margin: 8px 0 0; font-size: 18px; }
+    .pool-row .ptext { display: block; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    * { animation: none !important; transition: none !important; }
+  }
+</style>
+</head>
+<body>
+
+<div id="app"></div>
+<div id="banner"></div>
+<div id="duel">
+  <div class="fpanel" id="panel-1">
+    <div class="frow"><span class="pico" id="pico-1"></span><span class="name" id="name-1"></span><span class="style" id="style-1"></span><span class="mastery" id="mastery-1"></span></div>
+    <div class="hpbar"><div class="hpfill" id="hp-1"></div></div>
+    <div class="stats"><span>HP <b id="hpn-1"></b></span><span>Guard <b id="guard-1"></b></span><span>Hand <b id="handn-1"></b></span><span>Deck <b id="deckn-1"></b></span></div>
+    <div class="statuses" id="status-1"></div>
+  </div>
+
+  <div id="arena">
+    <div id="rangeviz">
+      <div class="zone" id="zone-far">Far · kicking range</div>
+      <div class="zone" id="zone-close">Close · in the pocket</div>
+      <div class="zone" id="zone-ground">Ground</div>
+    </div>
+    <div id="topnote"></div>
+    <div id="log"></div>
+  </div>
+
+  <div class="fpanel" id="panel-0">
+    <div class="frow"><span class="pico" id="pico-0"></span><span class="name" id="name-0"></span><span class="style" id="style-0"></span><span class="mastery" id="mastery-0"></span></div>
+    <div class="hpbar"><div class="hpfill" id="hp-0"></div></div>
+    <div class="stats"><span>HP <b id="hpn-0"></b></span><span>Guard <b id="guard-0"></b></span><span>Deck <b id="deckn-0"></b></span></div>
+    <div class="statuses" id="status-0"></div>
+  </div>
+
+  <div id="handwrap">
+    <div id="hand"></div>
+    <div id="controls">
+      <button id="endturn">End Turn</button>
+      <span id="stamina-pips"></span>
+    </div>
+  </div>
+</div>
+
+<script>
+"use strict";
+
+/* ================================================================ helpers */
+
+const $ = (id) => document.getElementById(id);
+const app = $("app");
+const rnd = (arr) => arr[Math.floor(Math.random() * arr.length)];
+function shuffle(a) {
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
+
+/* ================================================================ arts & cards */
+
+const ARTS = {
+  boxing:    { name: "Boxing",    color: "var(--boxing)",    passive: "Sweet Science: gain 1 Guard at the start of each of your turns." },
+  karate:    { name: "Karate",    color: "var(--karate)",    passive: "One Strike: your first strike each turn deals +2." },
+  taekwondo: { name: "Taekwondo", color: "var(--taekwondo)", passive: "Range Master: your strikes at Far range deal +1." },
+  muaythai:  { name: "Muay Thai", color: "var(--muaythai)",  passive: "Art of Eight Limbs: your Bleed effects deal +1 per turn." },
+  judo:      { name: "Judo",      color: "var(--judo)",      passive: "Kuzushi: your takedowns also Stagger the opponent." },
+  bjj:       { name: "Brazilian Jiu-Jitsu", color: "var(--bjj)", passive: "Position Before Submission: your submissions deal +2." },
+  neutral:   { name: "Fundamentals", color: "var(--neutral)", passive: "" },
+};
+
+/*
+ Card fields:
+ id, name, art, cost, ranges [far/close/ground], type (strike/guard/move/grapple/sub/util),
+ dmg, guard, master (bool), needTop (bool), text, fx { ... }
+*/
+const CARDS = [
+  /* ---- Boxing: cheap fast hands, guard, counters. Lives at Close. */
+  { id:"jab", name:"Jab", art:"boxing", cost:1, ranges:["close"], type:"strike", dmg:2,
+    text:"2 dmg. Draw 1 card.", fx:{ draw:1 } },
+  { id:"cross", name:"Cross", art:"boxing", cost:1, ranges:["close"], type:"strike", dmg:3,
+    text:"3 dmg." },
+  { id:"hook", name:"Lead Hook", art:"boxing", cost:2, ranges:["close"], type:"strike", dmg:4,
+    text:"4 dmg." },
+  { id:"uppercut", name:"Uppercut", art:"boxing", cost:2, ranges:["close"], type:"strike", dmg:3,
+    text:"3 dmg. +3 vs a Staggered opponent.", fx:{ bonusVsStagger:3 } },
+  { id:"bodyshot", name:"Body Shot", art:"boxing", cost:2, ranges:["close"], type:"strike", dmg:2,
+    text:"2 dmg. Opponent is Winded (-1 stamina next turn).", fx:{ stagger:true } },
+  { id:"slip", name:"Slip & Counter", art:"boxing", cost:1, ranges:["close","far"], type:"guard", guard:2,
+    text:"2 Guard. Counter 2: the next strike against you costs the attacker 2 HP.", fx:{ counter:2 } },
+  { id:"bobweave", name:"Bob and Weave", art:"boxing", cost:1, ranges:["close","far"], type:"guard", guard:4,
+    text:"4 Guard." },
+  { id:"footwork", name:"Ring Footwork", art:"boxing", cost:0, ranges:["close","far"], type:"move",
+    text:"Move between Far and Close. Draw 1.", fx:{ shift:"toggle", draw:1 } },
+  { id:"peekaboo", name:"Peek-a-Boo Guard", art:"boxing", cost:1, ranges:["close","far"], type:"guard", guard:5, master:true,
+    text:"MASTER. 5 Guard. Counter 3.", fx:{ counter:3 } },
+  { id:"ko_cross", name:"Knockout Cross", art:"boxing", cost:3, ranges:["close"], type:"strike", dmg:7, master:true,
+    text:"MASTER. 7 dmg. +3 if opponent is at 10 HP or less.", fx:{ bonusIfLowHP:3 } },
+
+  /* ---- Karate: precise first strikes, blocks, controls distance both ways. */
+  { id:"gyaku", name:"Gyaku-zuki", art:"karate", cost:1, ranges:["close"], type:"strike", dmg:3,
+    text:"Reverse punch. 3 dmg." },
+  { id:"maegeri", name:"Mae-geri", art:"karate", cost:1, ranges:["close","far"], type:"strike", dmg:2,
+    text:"Front kick. 2 dmg. Push the fight to Far.", fx:{ push:"far" } },
+  { id:"mawashi", name:"Mawashi-geri", art:"karate", cost:2, ranges:["far"], type:"strike", dmg:4,
+    text:"Roundhouse kick. 4 dmg." },
+  { id:"shuto", name:"Shuto Strike", art:"karate", cost:1, ranges:["close"], type:"strike", dmg:2,
+    text:"Knife hand. 2 dmg. Ignores up to 2 Guard.", fx:{ ignoreGuard:2 } },
+  { id:"ageuke", name:"Age-uke", art:"karate", cost:1, ranges:["close","far"], type:"guard", guard:3,
+    text:"Rising block. 3 Guard." },
+  { id:"kiai", name:"Kiai", art:"karate", cost:0, ranges:["close","far","ground"], type:"util",
+    text:"Your next strike this turn deals +2.", fx:{ nextStrike:2 } },
+  { id:"lunge", name:"Zenkutsu Lunge", art:"karate", cost:1, ranges:["far"], type:"move",
+    text:"Close the distance. Next strike this turn +1.", fx:{ shift:"close", nextStrike:1 } },
+  { id:"yoko", name:"Yoko-geri", art:"karate", cost:2, ranges:["close","far"], type:"strike", dmg:3,
+    text:"Side kick. 3 dmg. Push to Far.", fx:{ push:"far" } },
+  { id:"ippon", name:"Ippon", art:"karate", cost:3, ranges:["close","far"], type:"strike", dmg:6, master:true,
+    text:"MASTER. One strike decides. 6 dmg. +3 if it is the first card you play this turn.", fx:{ bonusFirst:3 } },
+  { id:"focus", name:"Sensei's Focus", art:"karate", cost:1, ranges:["close","far","ground"], type:"util", master:true,
+    text:"MASTER. Draw 2. Next strike this turn +2.", fx:{ draw:2, nextStrike:2 } },
+
+  /* ---- Taekwondo: dominates Far, kick chains, guard-breaking. */
+  { id:"apchagi", name:"Ap Chagi", art:"taekwondo", cost:1, ranges:["far"], type:"strike", dmg:3,
+    text:"Front snap kick. 3 dmg." },
+  { id:"dollyo", name:"Dollyo Chagi", art:"taekwondo", cost:2, ranges:["far"], type:"strike", dmg:4,
+    text:"Roundhouse. 4 dmg." },
+  { id:"yopchagi", name:"Yop Chagi", art:"taekwondo", cost:2, ranges:["close","far"], type:"strike", dmg:3,
+    text:"Side kick. 3 dmg. Push to Far.", fx:{ push:"far" } },
+  { id:"naeryo", name:"Naeryo Chagi", art:"taekwondo", cost:2, ranges:["far"], type:"strike", dmg:4,
+    text:"Axe kick. 4 dmg. Ignores up to 3 Guard.", fx:{ ignoreGuard:3 } },
+  { id:"dwichagi", name:"Dwi Chagi", art:"taekwondo", cost:2, ranges:["far"], type:"strike", dmg:5,
+    text:"Back kick. 5 dmg." },
+  { id:"spinhook", name:"Spinning Hook Kick", art:"taekwondo", cost:3, ranges:["far"], type:"strike", dmg:7,
+    text:"7 dmg." },
+  { id:"switchstance", name:"Switch Stance", art:"taekwondo", cost:0, ranges:["close","far"], type:"util",
+    text:"Draw 1. Next strike this turn +1.", fx:{ draw:1, nextStrike:1 } },
+  { id:"distance", name:"Distance Control", art:"taekwondo", cost:1, ranges:["close","far"], type:"move", guard:2,
+    text:"Move to Far. 2 Guard.", fx:{ shift:"far" } },
+  { id:"kick540", name:"540 Kick", art:"taekwondo", cost:3, ranges:["far"], type:"strike", dmg:8, master:true,
+    text:"MASTER. 8 dmg. Staggers.", fx:{ stagger:true } },
+  { id:"olyfoot", name:"Olympic Footwork", art:"taekwondo", cost:1, ranges:["close","far"], type:"move", guard:2, master:true,
+    text:"MASTER. Move anywhere standing. 2 Guard. Next strike +2.", fx:{ shift:"toggle", nextStrike:2 } },
+
+  /* ---- Muay Thai: clinch, elbows, bleed, brutal at any standing range. */
+  { id:"teep", name:"Teep", art:"muaythai", cost:1, ranges:["close","far"], type:"strike", dmg:2,
+    text:"Push kick. 2 dmg. Push to Far.", fx:{ push:"far" } },
+  { id:"lowkick", name:"Low Kick", art:"muaythai", cost:1, ranges:["close","far"], type:"strike", dmg:2,
+    text:"2 dmg. If you already played a Low Kick this turn, Stagger.", fx:{ staggerIfRepeat:true } },
+  { id:"elbow", name:"Slashing Elbow", art:"muaythai", cost:2, ranges:["close"], type:"strike", dmg:3,
+    text:"3 dmg. Bleed 2 (1 dmg at the start of their turn, 2 turns).", fx:{ bleed:2 } },
+  { id:"knee", name:"Khao Trong", art:"muaythai", cost:2, ranges:["close"], type:"strike", dmg:4,
+    text:"Straight knee. 4 dmg. +2 if opponent is Clinched.", fx:{ bonusIfClinch:2 } },
+  { id:"clinch", name:"The Plum", art:"muaythai", cost:2, ranges:["close"], type:"grapple",
+    text:"Clinch. Opponent can't change range on their next turn. Your strikes +1 this turn.", fx:{ clinch:true, nextStrikeAll:1 } },
+  { id:"mtround", name:"Body Roundhouse", art:"muaythai", cost:2, ranges:["far"], type:"strike", dmg:4,
+    text:"4 dmg." },
+  { id:"longguard", name:"Long Guard", art:"muaythai", cost:1, ranges:["close","far"], type:"guard", guard:3,
+    text:"3 Guard." },
+  { id:"kickcatch", name:"Kick Catch", art:"muaythai", cost:2, ranges:["far"], type:"guard", guard:2,
+    text:"2 Guard. Counter 3.", fx:{ counter:3 } },
+  { id:"elbowstorm", name:"Elbow Storm", art:"muaythai", cost:3, ranges:["close"], type:"strike", dmg:3, master:true,
+    text:"MASTER. 3 dmg. Bleed 3. Staggers.", fx:{ bleed:3, stagger:true } },
+  { id:"ironshins", name:"Iron Shins", art:"muaythai", cost:1, ranges:["close","far"], type:"util", guard:2, master:true,
+    text:"MASTER. 2 Guard. Your strikes deal +1 this turn and next.", fx:{ strikeBuff2Turns:1 } },
+
+  /* ---- Judo: grips and throws. Turns Close into Ground, on your terms. */
+  { id:"gripfight", name:"Kumi-kata", art:"judo", cost:1, ranges:["close"], type:"grapple", guard:1,
+    text:"Grip fighting. 1 Guard. Your next throw deals +2.", fx:{ grip:true } },
+  { id:"ogoshi", name:"O-goshi", art:"judo", cost:2, ranges:["close"], type:"grapple", dmg:3,
+    text:"Hip throw. 3 dmg. Takedown: fight goes to Ground, you on top.", fx:{ takedown:true } },
+  { id:"seoi", name:"Seoi-nage", art:"judo", cost:3, ranges:["close"], type:"grapple", dmg:5,
+    text:"Shoulder throw. 5 dmg. Takedown.", fx:{ takedown:true } },
+  { id:"ashiwaza", name:"Ashi-waza", art:"judo", cost:1, ranges:["close"], type:"grapple", dmg:1,
+    text:"Foot sweep. 1 dmg. Staggers. If you have a Grip: Takedown.", fx:{ stagger:true, takedownIfGrip:true } },
+  { id:"breakgrip", name:"Break Posture", art:"judo", cost:1, ranges:["close","ground"], type:"guard", guard:2,
+    text:"2 Guard. Remove opponent's Grip and Control.", fx:{ stripTokens:true } },
+  { id:"uchimata", name:"Uchi-mata", art:"judo", cost:3, ranges:["close"], type:"grapple", dmg:4,
+    text:"4 dmg. Takedown. Staggers.", fx:{ takedown:true, stagger:true } },
+  { id:"osaekomi", name:"Osaekomi", art:"judo", cost:2, ranges:["ground"], type:"grapple", dmg:1, needTop:true,
+    text:"Pin. 1 dmg. Gain Control. Opponent -1 stamina next turn.", fx:{ control:true, stagger:true } },
+  { id:"ukemi", name:"Ukemi", art:"judo", cost:1, ranges:["ground"], type:"move", guard:2,
+    text:"Breakfall and rise. Return the fight to Close. 2 Guard.", fx:{ standup:true } },
+  { id:"ipponseoi", name:"Ippon Seoi-nage", art:"judo", cost:3, ranges:["close"], type:"grapple", dmg:6, master:true,
+    text:"MASTER. 6 dmg. Takedown. Staggers.", fx:{ takedown:true, stagger:true } },
+  { id:"kuzushi", name:"Kuzushi", art:"judo", cost:1, ranges:["close"], type:"util", master:true,
+    text:"MASTER. Off-balance: Stagger. Your next throw deals +2.", fx:{ stagger:true, grip:true } },
+
+  /* ---- BJJ: get it to the ground, take control, finish. */
+  { id:"shoot", name:"Double Leg", art:"bjj", cost:2, ranges:["close"], type:"grapple", dmg:2,
+    text:"2 dmg. Takedown: fight goes to Ground, you on top.", fx:{ takedown:true } },
+  { id:"pullguard", name:"Pull Guard", art:"bjj", cost:1, ranges:["close"], type:"move", guard:3,
+    text:"Fight goes to Ground, opponent on top. 3 Guard. Draw 1.", fx:{ pullguard:true, draw:1 } },
+  { id:"sweep", name:"Scissor Sweep", art:"bjj", cost:2, ranges:["ground"], type:"grapple", dmg:1,
+    text:"1 dmg. Reverse the position: whoever is on top goes under.", fx:{ sweep:true } },
+  { id:"passguard", name:"Pass Guard", art:"bjj", cost:2, ranges:["ground"], type:"grapple", dmg:1, needTop:true,
+    text:"1 dmg. Gain Control (submissions +3, your ground strikes +1).", fx:{ control:true } },
+  { id:"kob", name:"Knee on Belly", art:"bjj", cost:1, ranges:["ground"], type:"strike", dmg:2, needTop:true,
+    text:"2 dmg. Opponent -1 stamina next turn.", fx:{ stagger:true } },
+  { id:"gnp", name:"Posture & Strike", art:"bjj", cost:1, ranges:["ground"], type:"strike", dmg:2, needTop:true,
+    text:"2 dmg." },
+  { id:"armbar", name:"Juji-gatame", art:"bjj", cost:3, ranges:["ground"], type:"sub", dmg:5, needTop:true,
+    text:"Armbar. 5 dmg (+3 with Control). If this leaves them at 6 HP or less: they tap.", fx:{ tap:6 } },
+  { id:"standup", name:"Technical Stand-up", art:"bjj", cost:1, ranges:["ground"], type:"move", guard:1,
+    text:"Return the fight to Close. 1 Guard.", fx:{ standup:true } },
+  { id:"rnc", name:"Rear Naked Choke", art:"bjj", cost:3, ranges:["ground"], type:"sub", dmg:6, needTop:true, master:true,
+    text:"MASTER. 6 dmg (+3 with Control). If this leaves them at 8 HP or less: they tap.", fx:{ tap:8 } },
+  { id:"berimbolo", name:"Berimbolo", art:"bjj", cost:2, ranges:["ground"], type:"grapple", master:true,
+    text:"MASTER. Reverse the position, gain Control, draw 1.", fx:{ sweep:true, control:true, draw:1 } },
+
+  /* ---- Fundamentals: neutral, never counts against purity. */
+  { id:"advance", name:"Close In", art:"neutral", cost:1, ranges:["far"], type:"move",
+    text:"Move to Close.", fx:{ shift:"close" } },
+  { id:"retreat", name:"Create Space", art:"neutral", cost:1, ranges:["close"], type:"move",
+    text:"Move to Far.", fx:{ shift:"far" } },
+  { id:"breathe", name:"Breathe", art:"neutral", cost:0, ranges:["close","far","ground"], type:"util",
+    text:"+1 stamina next turn.", fx:{ staminaNext:1 } },
+  { id:"highguard", name:"High Guard", art:"neutral", cost:1, ranges:["close","far","ground"], type:"guard", guard:3,
+    text:"3 Guard." },
+];
+const CARD = Object.fromEntries(CARDS.map((c) => [c.id, c]));
+
+/* ================================================================ decks */
+
+const DECK_SIZE = 20;
+const MAX_COPIES = 2;
+const MASTER_COPIES = 1;
+const PURITY_THRESHOLD = 0.75;
+
+function pureDeck(art) {
+  const pool = CARDS.filter((c) => c.art === art && !c.master);
+  const masters = CARDS.filter((c) => c.art === art && c.master);
+  const deck = [];
+  for (const c of pool) { deck.push(c.id, c.id); }         // 8 x2 = 16
+  for (const m of masters) deck.push(m.id);                 // +2
+  deck.push("breathe", "highguard");                        // +2 neutral = 20
+  return deck;
+}
+
+const PREBUILT = {
+  boxing:    { name: "The Sweet Science (pure Boxing)", cards: pureDeck("boxing") },
+  karate:    { name: "Empty Hand (pure Karate)", cards: pureDeck("karate") },
+  taekwondo: { name: "Foot Fist Way (pure Taekwondo)", cards: pureDeck("taekwondo") },
+  muaythai:  { name: "Eight Limbs (pure Muay Thai)", cards: pureDeck("muaythai") },
+  judo:      { name: "The Gentle Way (pure Judo)", cards: pureDeck("judo") },
+  bjj:       { name: "Arte Suave (pure BJJ)", cards: pureDeck("bjj") },
+  mma:       { name: "The Mongrel (MMA mix)", cards: [
+    "jab","jab","cross","hook","bobweave","footwork",
+    "teep","lowkick","elbow","knee","clinch",
+    "shoot","shoot","passguard","gnp","armbar","standup","sweep",
+    "advance","highguard",
+  ] },
+};
+
+function deckStats(cardIds) {
+  const counts = {};
+  let nonNeutral = 0;
+  for (const id of cardIds) {
+    const a = CARD[id].art;
+    if (a !== "neutral") { counts[a] = (counts[a] || 0) + 1; nonNeutral += 1; }
+  }
+  let topArt = null;
+  for (const a of Object.keys(counts))
+    if (!topArt || counts[a] > counts[topArt]) topArt = a;
+  const purity = topArt && nonNeutral ? counts[topArt] / nonNeutral : 0;
+  const arts = Object.keys(counts).length;
+  return {
+    counts, topArt, purity, arts,
+    mastery: purity >= PURITY_THRESHOLD ? topArt : null,
+    handSize: Math.min(7, 4 + Math.max(1, arts)),
+  };
+}
+
+/* ================================================================ portraits */
+
+function portraitSVG(key) {
+  const base = (accent, extra) => `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+    <circle cx="50" cy="50" r="47" fill="${accent}" opacity=".1"/>
+    <circle cx="50" cy="50" r="47" fill="none" stroke="${accent}" stroke-width="2" opacity=".55"/>
+    <path d="M50 60 Q28 65 24 90 L76 90 Q72 65 50 60 Z" fill="#0d0b08"/>
+    <circle cx="50" cy="40" r="16" fill="#0d0b08"/>
+    ${extra}</svg>`;
+  const P = {
+    boxing: base("#c94f3d", `
+      <circle cx="26" cy="60" r="10" fill="#c94f3d"/><rect x="21" y="68" width="10" height="8" rx="3" fill="#8a3527"/>
+      <circle cx="74" cy="60" r="10" fill="#c94f3d"/><rect x="69" y="68" width="10" height="8" rx="3" fill="#8a3527"/>`),
+    karate: base("#cfc9b8", `
+      <rect x="35" y="30" width="30" height="5" rx="2" fill="#cfc9b8"/>
+      <rect x="60" y="29" width="12" height="4" rx="2" fill="#cfc9b8" transform="rotate(14 60 31)"/>
+      <path d="M38 66 L50 84 L62 66" fill="none" stroke="#cfc9b8" stroke-width="5"/>`),
+    taekwondo: base("#4aa58a", `
+      <path d="M36 64 L50 84 L64 64" fill="none" stroke="#e8e0d0" stroke-width="6"/>
+      <path d="M39 66 L50 82 L61 66" fill="none" stroke="#4aa58a" stroke-width="2.5"/>`),
+    muaythai: base("#d9a441", `
+      <path d="M34 33 Q50 22 66 33" fill="none" stroke="#d9a441" stroke-width="5"/>
+      <path d="M66 33 Q74 36 72 44" fill="none" stroke="#d9a441" stroke-width="3"/>
+      <rect x="26" y="70" width="9" height="6" rx="2" fill="#d9a441"/><rect x="65" y="70" width="9" height="6" rx="2" fill="#d9a441"/>`),
+    judo: base("#4a7ab5", `
+      <path d="M34 64 L50 88 L66 64" fill="none" stroke="#4a7ab5" stroke-width="8"/>
+      <path d="M30 88 L70 88" stroke="#e8e0d0" stroke-width="4"/>
+      <circle cx="64" cy="42" r="3.4" fill="#0d0b08" stroke="#4a7ab5" stroke-width="1.5"/>`),
+    bjj: base("#8a63c9", `
+      <path d="M36 64 L50 84 L64 64" fill="none" stroke="#8a63c9" stroke-width="5"/>
+      <path d="M62 34 Q70 48 66 62" fill="none" stroke="#0d0b08" stroke-width="7"/>
+      <path d="M28 84 L72 84" stroke="#8a63c9" stroke-width="4"/>`),
+    mma: base("#9a8f7c", `
+      <path d="M30 44 Q30 18 50 18 Q70 18 70 44 L70 56 Q60 48 50 48 Q40 48 30 56 Z" fill="#1d1813" stroke="#9a8f7c" stroke-width="2"/>
+      <rect x="24" y="66" width="10" height="5" rx="2" fill="#cfc9b8" opacity=".7"/><rect x="66" y="66" width="10" height="5" rx="2" fill="#cfc9b8" opacity=".7"/>`),
+  };
+  return P[key] || P.mma;
+}
+function portraitFor(stats) {
+  if (stats.mastery) return portraitSVG(stats.mastery);
+  if (stats.arts > 1) return portraitSVG("mma");
+  return portraitSVG(stats.topArt || "mma");
+}
+
+/* ================================================================ AI opponents */
+
+const OPPONENTS = [
+  { key:"reyes", name:'Marisol "Lights Out" Reyes', deck:"boxing", aggr:.75, prefRange:"close",
+    bio:"Undefeated in the pro ring until three commissions quietly agreed to stop licensing her opponents. Now she takes challenges in hotel ballrooms and parking structures, and looks bored the whole time. She is not bored. The lights in the nickname are yours.",
+    quote:"You'll hear the bell. You just won't remember it." },
+  { key:"kanda", name:"Kanda Tetsuo", deck:"karate", aggr:.6, prefRange:"far",
+    bio:"Heir to a mountain dojo four centuries deep. His last three fights ended with a single strike each, after which he bowed and paid for his opponents' hospital meals. He is searching for the perfect technique. His rivals worry he has already found it and is being polite.",
+    quote:"One breath. One step. One answer." },
+  { key:"mirae", name:"Yun Mi-rae", deck:"taekwondo", aggr:.65, prefRange:"far",
+    bio:"Silver in Seoul, and the judges' decision that cost her the gold still plays frame by frame on her gym wall. She left the federation, taped over the scoreboard, and started collecting knockouts instead of points. Her kicks arrive before the idea of blocking them does.",
+    quote:"Points are for judges. This one is for me." },
+  { key:"somchai", name:'Somchai "Diamond Knee" Sitsongpeenong', deck:"muaythai", aggr:.85, prefRange:"close",
+    bio:"Three hundred and twelve fights out of the stadiums of Bangkok, and every purse went home to the village gym that raised him. He smiles through entire fights. The elders swear his knee once cracked a temple bell, and the bell has never disputed it.",
+    quote:"The clinch is a conversation. Come. Let us talk." },
+  { key:"barsov", name:"Viktor Barsov", deck:"judo", aggr:.7, prefRange:"close",
+    bio:"An Olympic alternate who never got his moment, so he spent twenty years in a freezing Novosibirsk gym making sure the moment would regret it. Reads poetry, feeds stray cats, folds opponents like hotel laundry. Gravity is simply his oldest training partner.",
+    quote:"The floor was always going to win. I only make the introduction." },
+  { key:"rosa", name:'Rosa "A Dama" Silva', deck:"bjj", aggr:.6, prefRange:"ground",
+    bio:"Third generation off the mats of Rio. They call her the Lady because she says 'excuse me' before she passes your guard and 'thank you' after you tap. She plays chess by post with three grandmasters and complains that it moves too fast.",
+    quote:"Excuse me. This arm is mine now." },
+  { key:"mongrel", name:'Alex "The Mongrel" Cross', deck:"mma", aggr:.75, prefRange:"close",
+    bio:"No dojo, no lineage, no flag on the wall. Cross learned boxing in one gym and wrestling in another and was thrown out of both for asking too many questions. Traditionalists call the style disrespectful. The style calls their champions 6 and 0.",
+    quote:"Your art has a blind spot. I live there." },
+];
+
+/* ================================================================ duel state */
+
+let M = null;   // match state
+let humanResolve = null;
+
+function newFighter(name, deckIds, human, persona) {
+  const stats = deckStats(deckIds);
+  return {
+    name, human, persona,
+    hp: 30, maxhp: 30, stamina: 0, guard: 0,
+    deck: shuffle(deckIds.slice()), hand: [], discard: [],
+    stats,
+    st: { stagger:0, bleed:[], clinch:0, grip:0, control:0, counter:0, staminaNext:0, strikeBuffTurns:0 },
+    turnFlags: {},
+  };
+}
+
+function startDuel(p0, p1) {
+  M = { p: [p0, p1], range: "far", top: null, active: 1, over: false, turnNo: 0, method: "K.O." };
+  $("app").style.display = "none";
+  $("duel").style.display = "block";
+  $("log").innerHTML = "";
+  $("pico-0").innerHTML = portraitFor(p0.stats);
+  $("pico-1").innerHTML = portraitFor(p1.stats);
+  bannerShow("Fight");
+  logLine(`${p0.name} vs ${p1.name}. Touch gloves. Or don't.`, true);
+  render();
+  nextTurn();
+}
+
+/* ================================================================ rendering */
+
+function render() {
+  const [me, foe] = [M.p[0], M.p[1]];
+  for (const i of [0, 1]) {
+    const f = M.p[i];
+    $("name-" + i).textContent = f.name;
+    const s = f.stats;
+    const styleName = s.mastery ? ARTS[s.mastery].name + " (mastery)" :
+      s.arts > 1 ? s.arts + " arts (cross-trained)" : (s.topArt ? ARTS[s.topArt].name : "unknown style");
+    $("style-" + i).textContent = styleName;
+    $("style-" + i).style.color = s.topArt ? ARTS[s.topArt].color : "var(--dim)";
+    $("mastery-" + i).textContent = s.mastery ? "✦" : "";
+    $("hp-" + i).style.width = Math.max(0, (f.hp / f.maxhp) * 100) + "%";
+    $("hp-" + i).parentElement.classList.toggle("low", f.hp <= 10);
+    $("hpn-" + i).textContent = Math.max(0, f.hp) + "/" + f.maxhp;
+    $("guard-" + i).textContent = f.guard;
+    $("deckn-" + i).textContent = f.deck.length + "+" + f.discard.length;
+    if (i === 1) $("handn-1").textContent = f.hand.length;
+    $("status-" + i).innerHTML = statusChips(f);
+    $("panel-" + i).classList.toggle("active", M.active === i && !M.over);
+  }
+  for (const z of ["far", "close", "ground"])
+    $("zone-" + z).classList.toggle("on", M.range === z);
+  $("topnote").textContent = M.range === "ground"
+    ? (M.top !== null ? M.p[M.top].name + " has top position." : "Scramble on the ground.")
+    : (M.range === "close" ? "Trading in the pocket." : "Probing at distance.");
+  renderHand();
+}
+
+function statusChips(f) {
+  const chips = [];
+  if (f.st.stagger) chips.push(`<span class="status-chip bad">Staggered</span>`);
+  if (f.st.bleed.length) chips.push(`<span class="status-chip bad">Bleeding ${f.st.bleed.length}</span>`);
+  if (f.st.clinch) chips.push(`<span class="status-chip bad">Clinched</span>`);
+  if (f.st.grip) chips.push(`<span class="status-chip good">Grip</span>`);
+  if (f.st.control) chips.push(`<span class="status-chip good">Control</span>`);
+  if (f.st.counter) chips.push(`<span class="status-chip good">Counter ${f.st.counter}</span>`);
+  if (f.st.strikeBuffTurns > 0) chips.push(`<span class="status-chip good">Iron Shins</span>`);
+  return chips.join("");
+}
+
+function renderHand() {
+  const f = M.p[M.active];
+  const hand = $("hand");
+  hand.innerHTML = "";
+  const show = f.human && !M.over;
+  $("handwrap").style.visibility = show ? "visible" : "hidden";
+  if (!show) { $("stamina-pips").textContent = ""; return; }
+  f.hand.forEach((id, idx) => {
+    const c = CARD[id];
+    const ok = canPlay(f, c);
+    const b = document.createElement("button");
+    b.className = "card " + (ok ? "playable" : "dead");
+    b.style.borderTopColor = ARTS[c.art].color;
+    b.innerHTML =
+      `<span class="top"><span class="cname">${c.name}</span><span class="ccost">${c.cost}◈</span></span>` +
+      `<span class="cart" style="color:${ARTS[c.art].color}">${ARTS[c.art].name}${c.master ? " ✦" : ""}</span>` +
+      `<span class="cranges">${c.ranges.map(cap).join(" · ")}${c.needTop ? " · top" : ""}</span>` +
+      `<span class="ctext">${c.text}</span>`;
+    if (ok) b.onclick = () => {
+      b.onclick = null;
+      b.classList.add("zoomout");
+      setTimeout(() => playCard(f, idx), 170);
+    };
+    hand.appendChild(b);
+  });
+  $("stamina-pips").textContent = "◈".repeat(f.stamina) + "·".repeat(Math.max(0, 5 - f.stamina));
+  $("endturn").disabled = false;
+}
+
+function logLine(text, strong) {
+  const d = document.createElement("div");
+  d.className = "l" + (strong ? " hit" : "");
+  d.textContent = text;
+  const log = $("log");
+  log.appendChild(d);
+  while (log.children.length > 4) log.removeChild(log.firstChild);
+}
+
+function bannerShow(text) {
+  const b = $("banner");
+  b.textContent = text;
+  b.classList.remove("show");
+  void b.offsetWidth;
+  b.classList.add("show");
+}
+
+function impactFlash(panelId) {
+  const panel = $(panelId);
+  panel.style.position = "relative";
+  const d = document.createElement("div");
+  d.className = "impact";
+  panel.appendChild(d);
+  setTimeout(() => d.remove(), 500);
+}
+
+function floater(panelId, text, color) {
+  const panel = $(panelId);
+  const s = document.createElement("span");
+  s.className = "floater";
+  s.textContent = text;
+  s.style.color = color || "var(--red)";
+  s.style.left = (30 + Math.random() * 40) + "%";
+  s.style.top = "8px";
+  panel.style.position = "relative";
+  panel.appendChild(s);
+  setTimeout(() => s.remove(), 1000);
+}
+
+/* ================================================================ rules */
+
+function canPlay(f, c) {
+  if (M.over) return false;
+  if (c.cost > f.stamina) return false;
+  if (!c.ranges.includes(M.range)) return false;
+  const meIdx = M.p.indexOf(f);
+  if (c.needTop && (M.range !== "ground" || M.top !== meIdx)) return false;
+  if (c.fx && (c.fx.takedown || c.fx.takedownIfGrip) && M.range !== "close") return false;
+  return true;
+}
+
+function draw(f, n) {
+  for (let i = 0; i < n; i++) {
+    if (!f.deck.length) {
+      if (!f.discard.length) return;
+      f.deck = shuffle(f.discard);
+      f.discard = [];
+    }
+    if (f.hand.length >= 9) return;
+    f.hand.push(f.deck.pop());
+  }
+}
+
+function isKick(c) {
+  return /chagi|geri|kick|teep|roundhouse|khao/i.test(c.name) || c.id === "kick540";
+}
+
+function strikeDamage(att, def, c, commit) {
+  let dmg = c.dmg || 0;
+  const tf = att.turnFlags;
+  // combo: consecutive same-art cards
+  if (tf.lastArt === c.art && c.art !== "neutral" && tf.comboCount >= 1) dmg += 1;
+  // one-shot buffs
+  if (tf.nextStrike) { dmg += tf.nextStrike; if (commit) tf.nextStrike = 0; }
+  if (tf.strikeAll) dmg += tf.strikeAll;
+  if (att.st.strikeBuffTurns > 0) dmg += 1;
+  // conditionals
+  const fx = c.fx || {};
+  if (fx.bonusVsStagger && def.st.stagger) dmg += fx.bonusVsStagger;
+  if (fx.bonusIfClinch && def.st.clinch) dmg += fx.bonusIfClinch;
+  if (fx.bonusIfLowHP && def.hp <= 10) dmg += fx.bonusIfLowHP;
+  if (fx.bonusFirst && tf.cardsPlayed === 0) dmg += fx.bonusFirst;
+  // mastery passives
+  if (att.stats.mastery === "karate" && !tf.firstStrikeUsed && (c.type === "strike" || c.type === "sub")) {
+    dmg += 2;
+    if (commit) tf.firstStrikeUsed = true;
+  }
+  if (att.stats.mastery === "taekwondo" && M.range === "far") dmg += 1;
+  if (att.stats.mastery === "bjj" && c.type === "sub") dmg += 2;
+  // control bonuses
+  if (c.type === "sub" && att.st.control) dmg += 3;
+  if (c.type === "strike" && M.range === "ground" && att.st.control) dmg += 1;
+  // judo grip on throws
+  if ((fx.takedown || fx.takedownIfGrip) && att.st.grip) { dmg += 2; }
+  return dmg;
+}
+
+function applyDamage(att, def, c, dmg) {
+  const defIdx = M.p.indexOf(def);
+  const fx = c.fx || {};
+  // counter fires first
+  if (def.st.counter && (c.type === "strike" || c.type === "sub")) {
+    att.hp -= def.st.counter;
+    logLine(`${def.name} counters for ${def.st.counter}!`, true);
+    floater("panel-" + M.p.indexOf(att), "-" + def.st.counter, "var(--red)");
+    def.st.counter = 0;
+    if (att.hp <= 0) return;
+  }
+  let remaining = dmg;
+  let guard = def.guard;
+  const ignore = Math.min(fx.ignoreGuard || 0, guard);
+  guard -= ignore;
+  const absorbed = Math.min(guard, remaining);
+  def.guard = guard - absorbed + ignore * 0; // ignored guard is bypassed, not destroyed
+  def.guard = Math.max(0, def.guard);
+  remaining -= absorbed;
+  if (fx.ignoreGuard) def.guard = Math.max(0, def.guard); // already handled
+  if (remaining > 0) {
+    def.hp -= remaining;
+    floater("panel-" + defIdx, "-" + remaining);
+    impactFlash("panel-" + defIdx);
+    $("panel-" + defIdx).classList.remove("shake");
+    void $("panel-" + defIdx).offsetWidth;
+    $("panel-" + defIdx).classList.add("shake");
+  } else if (dmg > 0) {
+    floater("panel-" + defIdx, "blocked", "var(--dim)");
+  }
+}
+
+function playCard(f, handIdx) {
+  const foe = M.p[1 - M.p.indexOf(f)];
+  const meIdx = M.p.indexOf(f);
+  const id = f.hand[handIdx];
+  const c = CARD[id];
+  if (!canPlay(f, c)) return;
+  f.hand.splice(handIdx, 1);
+  f.discard.push(id);
+  f.stamina -= c.cost;
+  const fx = c.fx || {};
+  const tf = f.turnFlags;
+  const hadGrip = f.st.grip > 0;
+
+  let msg = `${f.name}: ${c.name}`;
+
+  // damage
+  if (c.dmg !== undefined || c.type === "strike" || c.type === "sub") {
+    const dmg = strikeDamage(f, foe, c, true);
+    if (dmg > 0) { applyDamage(f, foe, c, dmg); msg += ` (${dmg})`; }
+  }
+  // guard
+  if (c.guard) { f.guard = Math.min(8, f.guard + c.guard); }
+  // grip consumed by throws
+  if ((fx.takedown || (fx.takedownIfGrip && hadGrip)) && f.st.grip) f.st.grip = 0;
+
+  // statuses on foe
+  if (fx.stagger) foe.st.stagger = 1;
+  if (fx.staggerIfRepeat && tf.lowKicks >= 1) foe.st.stagger = 1;
+  if (fx.bleed) {
+    let n = fx.bleed;
+    if (f.stats.mastery === "muaythai") n += 1;
+    for (let i = 0; i < 2; i++) foe.st.bleed.push(n); // 2 turns of n dmg
+    msg += ". Blood.";
+  }
+  if (fx.clinch) foe.st.clinch = 1;
+  if (fx.counter) f.st.counter = Math.max(f.st.counter, fx.counter);
+  if (fx.grip) f.st.grip = 1;
+  if (fx.control) { f.st.control = 1; foe.st.control = 0; }
+  if (fx.stripTokens) { foe.st.grip = 0; foe.st.control = 0; }
+  if (fx.nextStrike) tf.nextStrike = (tf.nextStrike || 0) + fx.nextStrike;
+  if (fx.nextStrikeAll) tf.strikeAll = (tf.strikeAll || 0) + fx.nextStrikeAll;
+  if (fx.strikeBuff2Turns) f.st.strikeBuffTurns = 2;
+  if (fx.staminaNext) f.st.staminaNext += fx.staminaNext;
+  if (fx.draw) draw(f, fx.draw);
+
+  // position changes (clinched fighters can't move the fight)
+  const clinched = f.st.clinch === 2; // set to 2 during their own turn
+  if (!clinched) {
+    if (fx.takedown) { M.range = "ground"; M.top = meIdx; msg += ". TAKEDOWN!"; clearOnPositionChange(); }
+    else if (fx.takedownIfGrip && hadGrip) { M.range = "ground"; M.top = meIdx; msg += ". TAKEDOWN!"; clearOnPositionChange(); }
+    if (fx.pullguard) { M.range = "ground"; M.top = 1 - meIdx; msg += ". Pulls guard."; clearOnPositionChange(); }
+    if (fx.sweep && M.range === "ground") {
+      M.top = meIdx;
+      msg += ". SWEEP!";
+      foe.st.control = 0;
+    }
+    if (fx.standup && M.range === "ground") { M.range = "close"; M.top = null; clearControl(); msg += ". Back to the feet."; }
+    if (fx.shift) {
+      if (M.range !== "ground") {
+        M.range = fx.shift === "toggle" ? (M.range === "far" ? "close" : "far") : fx.shift;
+      }
+    }
+    if (fx.push && M.range === "close") { M.range = "far"; msg += ". Pushed away."; }
+  } else if (fx.takedown || fx.shift || fx.push || fx.standup || fx.pullguard) {
+    msg += " (clinched: can't move the fight)";
+  }
+
+  // judo mastery: takedowns stagger
+  if (f.stats.mastery === "judo" && fx.takedown) foe.st.stagger = 1;
+
+  // combo bookkeeping
+  if (tf.lastArt === c.art && c.art !== "neutral") tf.comboCount += 1;
+  else tf.comboCount = 0;
+  tf.lastArt = c.art;
+  tf.cardsPlayed += 1;
+  if (c.id === "lowkick") tf.lowKicks = (tf.lowKicks || 0) + 1;
+
+  logLine(msg, (c.dmg || 0) > 0);
+
+  // submission tap check
+  if (c.type === "sub" && foe.hp > 0) {
+    const threshold = fx.tap || 0;
+    if (foe.hp <= threshold) {
+      foe.hp = 0;
+      M.method = "Tap Out";
+      logLine(`${foe.name} taps out!`, true);
+    }
+  }
+  checkEnd();
+  render();
+}
+
+function clearOnPositionChange() {
+  for (const f of M.p) { f.st.grip = 0; }
+}
+function clearControl() {
+  for (const f of M.p) { f.st.control = 0; }
+}
+
+function checkEnd() {
+  for (const i of [0, 1]) {
+    if (M.p[i].hp <= 0 && !M.over) {
+      M.over = true;
+      const w = M.p[1 - i], l = M.p[i];
+      setTimeout(() => showResult(w, l), 600);
+    }
+  }
+}
+
+/* ================================================================ turns */
+
+async function nextTurn() {
+  if (M.over) return;
+  M.active = 1 - M.active;
+  M.turnNo += 1;
+  const f = M.p[M.active];
+  const foe = M.p[1 - M.active];
+
+  // start-of-turn: bleed
+  if (f.st.bleed.length) {
+    const b = f.st.bleed.shift();
+    f.hp -= b;
+    logLine(`${f.name} bleeds for ${b}.`);
+    floater("panel-" + M.active, "-" + b);
+    checkEnd();
+    if (M.over) { render(); return; }
+  }
+  // guard resets at the start of your own turn
+  f.guard = 0;
+  if (f.stats.mastery === "boxing") f.guard = 1;
+  // stamina
+  f.stamina = 3 + f.st.staminaNext - (f.st.stagger ? 1 : 0);
+  f.stamina = Math.max(0, Math.min(5, f.stamina));
+  f.st.staminaNext = 0;
+  if (f.st.stagger) logLine(`${f.name} is staggered (-1 stamina).`);
+  f.st.stagger = 0;
+  // clinch: mark as active this turn, then clear
+  f.st.clinch = f.st.clinch ? 2 : 0;
+  // buffs tick
+  if (f.st.strikeBuffTurns > 0) f.st.strikeBuffTurns -= 1;
+  // counter expires when your own turn comes around again? No: counter persists until used or your next turn ends. Keep until used.
+  f.turnFlags = { lastArt: null, comboCount: 0, cardsPlayed: 0, nextStrike: 0, strikeAll: 0, firstStrikeUsed: false, lowKicks: 0, gripSnapshot: f.st.grip > 0 };
+  // draw to hand size
+  draw(f, Math.max(0, f.stats.handSize - f.hand.length));
+
+  render();
+  if (M.turnNo > 1) bannerShow(f.human && !M.hotseat ? "Your Turn" : f.name);
+
+  if (f.human) {
+    if (M.hotseat && M.turnNo > 1) await passScreen(f.name);
+    render();
+    await humanTurn();
+  } else {
+    await aiTurn(f, foe);
+  }
+  // end of turn cleanup
+  const done = M.p[M.active];
+  done.st.clinch = 0; // clinch on them expires after their turn
+  if (!M.over) nextTurn();
+}
+
+function humanTurn() {
+  return new Promise((resolve) => {
+    humanResolve = resolve;
+    $("endturn").onclick = () => {
+      $("endturn").onclick = null;
+      const r = humanResolve; humanResolve = null;
+      r();
+    };
+  });
+}
+
+/* ================================================================ AI */
+
+function aiScore(f, foe, c, persona) {
+  const fx = c.fx || {};
+  let score = 0;
+  const dmg = strikeDamage(f, foe, c, false);
+  score += dmg * (1 + persona.aggr);
+  if (dmg >= foe.hp + foe.guard) score += 50;                       // finish them
+  score += (c.guard || 0) * (1.6 - persona.aggr);
+  if (fx.counter) score += fx.counter * (1.4 - persona.aggr);
+  if (fx.bleed) score += fx.bleed * 2;
+  if (fx.stagger) score += 2;
+  if (fx.clinch && persona.prefRange === "close") score += 3;
+  if (fx.grip) score += 2.5;
+  if (fx.control && !f.st.control) score += 4;
+  // range strategy
+  const want = persona.prefRange;
+  if (fx.takedown || fx.pullguard) score += want === "ground" ? 7 : 1.5;
+  if (fx.takedownIfGrip && f.st.grip) score += want === "ground" ? 7 : 2;
+  if (fx.standup && want !== "ground") score += 6;
+  if (fx.sweep && M.range === "ground" && M.top !== M.p.indexOf(f)) score += 8;
+  if (fx.shift) {
+    const to = fx.shift === "toggle" ? (M.range === "far" ? "close" : "far") : fx.shift;
+    if (to === want && M.range !== want) score += 5;
+    else if (M.range === want) score -= 2;
+  }
+  if (fx.push && M.range === "close" && want === "far") score += 4;
+  if (fx.push && want === "close") score -= 2;
+  if (c.type === "sub") {
+    const eff = dmg;
+    if (foe.hp - eff <= (fx.tap || 0)) score += 60;                 // tap incoming
+    else if (foe.hp < 15) score += 4;
+  }
+  if (fx.draw) score += 1.5;
+  if (fx.nextStrike || fx.nextStrikeAll) score += 2;
+  score -= c.cost * .4;
+  return score;
+}
+
+async function aiTurn(f, foe) {
+  await sleep(650);
+  let safety = 20;
+  while (!M.over && safety-- > 0) {
+    const playable = f.hand
+      .map((id, idx) => ({ c: CARD[id], idx }))
+      .filter((x) => canPlay(f, x.c));
+    if (!playable.length) break;
+    playable.sort((a, b) => aiScore(f, foe, b.c, f.persona) - aiScore(f, foe, a.c, f.persona));
+    const best = playable[0];
+    if (aiScore(f, foe, best.c, f.persona) < 0.5 && f.turnFlags.cardsPlayed > 0) break;
+    playCard(f, best.idx);
+    await sleep(800);
+  }
+  await sleep(350);
+}
+
+/* ================================================================ screens */
+
+function el(html) {
+  const d = document.createElement("div");
+  d.innerHTML = html;
+  return d;
+}
+
+function showMenu() {
+  $("duel").style.display = "none";
+  app.style.display = "block";
+  app.innerHTML = "";
+  const s = el(`
+    <div class="screen">
+      <h1>Masters of the Way</h1>
+      <div class="sub">one fight. two philosophies. every art has an answer.</div>
+      <button class="menu-btn" id="m-fight">Fight<small>Choose your deck, choose your opponent.</small></button>
+      <button class="menu-btn" id="m-hotseat">Two Players<small>Pass-and-play on this device.</small></button>
+      <button class="menu-btn" id="m-build">Deck Builder<small>Purity brings mastery. Mixing brings options. Choose.</small></button>
+      <div style="max-width:520px;margin:26px auto;color:var(--dim);font-size:14px">
+        <b style="color:var(--gold);font-weight:normal">The Way of it:</b>
+        A deck that is three-quarters one art earns that art's <i>mastery passive</i> and its master techniques.
+        A deck that mixes arts draws a bigger hand (4 + one per art) and covers every range,
+        but masters nothing. Control the range: Taekwondo wants Far, Boxing wants Close,
+        Jiu-Jitsu wants you on the floor.
+      </div>
+    </div>`);
+  app.appendChild(s);
+  $("m-fight").onclick = () => showDeckSelect(false);
+  $("m-hotseat").onclick = () => showDeckSelect(true);
+  $("m-build").onclick = showBuilder;
+}
+
+function deckOptions() {
+  const opts = Object.entries(PREBUILT).map(([k, d]) => ({ key: k, name: d.name, cards: d.cards }));
+  const custom = loadCustom();
+  if (custom) opts.unshift({ key: "custom", name: "My Custom Deck", cards: custom });
+  return opts;
+}
+
+function showDeckSelect(hotseat, forPlayer = 0, chosen = []) {
+  app.innerHTML = "";
+  const opts = deckOptions();
+  const who = hotseat ? `Player ${forPlayer + 1}` : "your";
+  const s = el(`<div class="screen"><h2>Choose ${who} deck</h2><div id="dl"></div>
+    <div style="text-align:center"><button class="back" id="bk">back</button></div></div>`);
+  app.appendChild(s);
+  for (const o of opts) {
+    const st = deckStats(o.cards);
+    const b = document.createElement("button");
+    b.className = "fighter-card";
+    b.innerHTML = `<span class="fname">${o.name}</span><br>
+      <span class="fart" style="color:${st.topArt ? ARTS[st.topArt].color : "var(--dim)"}">
+      ${st.mastery ? "Mastery: " + ARTS[st.mastery].name : st.arts + " arts, no mastery"} · hand ${st.handSize}</span>`;
+    b.onclick = () => {
+      const pick = { name: o.name, cards: o.cards };
+      if (hotseat && forPlayer === 0) showDeckSelect(true, 1, [pick]);
+      else if (hotseat) startHotseat(chosen[0], pick);
+      else showOpponents(pick);
+    };
+    $("dl").appendChild(b);
+  }
+  $("bk").onclick = showMenu;
+}
+
+function showOpponents(playerDeck) {
+  app.innerHTML = "";
+  const s = el(`<div class="screen"><h2>Choose your opponent</h2><div id="ol"></div>
+    <div style="text-align:center"><button class="back" id="bk">back</button></div></div>`);
+  app.appendChild(s);
+  for (const o of OPPONENTS) {
+    const st = deckStats(PREBUILT[o.deck].cards);
+    const b = document.createElement("button");
+    b.className = "fighter-card";
+    b.innerHTML = `<span class="pico">${portraitSVG(o.deck)}</span>
+      <span class="fbody">
+        <span class="fname">${o.name}</span>
+        <span class="fart" style="color:${st.topArt ? ARTS[st.topArt].color : 'var(--dim)'}"> · ${st.mastery ? ARTS[st.mastery].name : "Mixed Martial Arts"}</span>
+        <div class="fdesc">${o.bio}</div>
+        <div class="quote">"${o.quote}"</div>
+      </span>`;
+    b.onclick = () => {
+      const p0 = newFighter("You", playerDeck.cards, true, null);
+      const p1 = newFighter(o.name, PREBUILT[o.deck].cards, false, o);
+      M = null;
+      startDuel(p0, p1);
+      M.hotseat = false;
+    };
+    $("ol").appendChild(b);
+  }
+  $("bk").onclick = showMenu;
+}
+
+function startHotseat(d0, d1) {
+  const p0 = newFighter("Player 1", d0.cards, true, null);
+  const p1 = newFighter("Player 2", d1.cards, true, null);
+  startDuel(p0, p1);
+  M.hotseat = true;
+}
+
+function passScreen(name) {
+  return new Promise((resolve) => {
+    const o = el(`<div class="overlay"><div class="obox">
+      <h2>Pass the device</h2><p>${name}, take your corner. Tap when only your eyes are on the screen.</p>
+      <button class="menu-btn" style="text-align:center" id="pass-ok">Ready</button></div></div>`);
+    document.body.appendChild(o);
+    $("pass-ok").onclick = () => { o.remove(); resolve(); };
+  });
+}
+
+function showResult(winner, loser) {
+  const o = el(`<div class="overlay"><div class="obox">
+    <div class="kotext">${M.method}</div>
+    <div style="width:74px;margin:0 auto 8px" class="pico">${portraitFor(winner.stats)}</div>
+    <h2>${winner.name} wins</h2>
+    <p>${loser.name} has nothing left.${winner.persona ? ' "' + winner.persona.quote + '"' : ""}</p>
+    <p style="font-style:italic">"${rnd([
+      "The art was the answer. The fighter was the question.",
+      "Styles make fights. Preparation makes winners.",
+      "Everyone has a plan until the range closes.",
+      "The mat does not lie.",
+      "Respect, touched gloves, and one long walk back to the locker room.",
+    ])}"</p>
+    <button class="menu-btn" style="text-align:center" id="res-menu">Back to the dojo</button>
+  </div></div>`);
+  document.body.appendChild(o);
+  $("res-menu").onclick = () => { o.remove(); showMenu(); };
+}
+
+/* ================================================================ deck builder */
+
+const CUSTOM_KEY = "motw-custom-deck-v1";
+function loadCustom() {
+  try { return JSON.parse(localStorage.getItem(CUSTOM_KEY)); } catch (e) { return null; }
+}
+function saveCustom(cards) {
+  try { localStorage.setItem(CUSTOM_KEY, JSON.stringify(cards)); } catch (e) {}
+}
+
+function showBuilder() {
+  app.innerHTML = "";
+  let deck = loadCustom() || PREBUILT.boxing.cards.slice();
+  const s = el(`<div class="screen">
+    <h2>Deck Builder</h2>
+    <div id="builder-stats"></div>
+    <div id="pool"></div>
+    <div style="text-align:center;margin-top:16px">
+      <button class="menu-btn" style="text-align:center;max-width:300px" id="save-deck">Save deck</button>
+      <button class="back" id="bk">back without saving</button>
+    </div>
+  </div>`);
+  app.appendChild(s);
+
+  const count = (id) => deck.filter((x) => x === id).length;
+
+  function refresh() {
+    const st = deckStats(deck);
+    const sizeOk = deck.length === DECK_SIZE;
+    $("builder-stats").innerHTML =
+      `<span class="${sizeOk ? "ok" : "warn"}">${deck.length}/${DECK_SIZE} cards</span> · ` +
+      `Purity <b>${Math.round(st.purity * 100)}%</b>${st.topArt ? " " + ARTS[st.topArt].name : ""} · ` +
+      (st.mastery
+        ? `<span class="ok">MASTERY: ${ARTS[st.mastery].passive}</span>`
+        : `<span>no mastery (need 75% one art)</span>`) +
+      ` · Hand size <b>${st.handSize}</b> (${st.arts} art${st.arts === 1 ? "" : "s"})`;
+    // enforce: master cards only while their art has purity
+    for (const c of CARDS) {
+      if (c.master && count(c.id) > 0 && st.mastery !== c.art) {
+        deck = deck.filter((x) => x !== c.id);
+        return refresh();
+      }
+    }
+    renderPool(st);
+    $("save-deck").disabled = !sizeOk;
+    $("save-deck").style.opacity = sizeOk ? 1 : .4;
+  }
+
+  function renderPool(st) {
+    const pool = $("pool");
+    pool.innerHTML = "";
+    const order = ["boxing", "karate", "taekwondo", "muaythai", "judo", "bjj", "neutral"];
+    for (const art of order) {
+      const sec = document.createElement("div");
+      sec.className = "art-section";
+      sec.innerHTML = `<div class="art-head" style="color:${ARTS[art].color}">${ARTS[art].name}` +
+        (ARTS[art].passive ? ` <span class="locknote">mastery: ${ARTS[art].passive}</span>` : "") + `</div>`;
+      for (const c of CARDS.filter((x) => x.art === art)) {
+        const n = count(c.id);
+        const max = c.master ? MASTER_COPIES : MAX_COPIES;
+        const masterLocked = c.master && st.mastery !== c.art;
+        const row = document.createElement("div");
+        row.className = "pool-row" + (masterLocked ? " locked" : "");
+        row.innerHTML =
+          `<span class="pcost">${c.cost}◈</span>
+           <span class="pname">${c.name}${c.master ? " ✦" : ""} <span class="ptext">· ${c.ranges.map(cap).join("/")}${c.needTop ? " (top)" : ""} · ${c.text}</span>
+           ${masterLocked ? '<span class="locknote">requires 75% ' + ARTS[c.art].name + "</span>" : ""}</span>`;
+        const minus = document.createElement("button");
+        minus.className = "cnt-btn"; minus.textContent = "−";
+        minus.disabled = n === 0;
+        minus.onclick = () => { deck.splice(deck.indexOf(c.id), 1); refresh(); };
+        const num = document.createElement("span");
+        num.className = "cnt"; num.textContent = n;
+        const plus = document.createElement("button");
+        plus.className = "cnt-btn"; plus.textContent = "+";
+        plus.disabled = n >= max || deck.length >= DECK_SIZE || masterLocked;
+        plus.onclick = () => { deck.push(c.id); refresh(); };
+        row.appendChild(minus); row.appendChild(num); row.appendChild(plus);
+        sec.appendChild(row);
+      }
+      pool.appendChild(sec);
+    }
+  }
+
+  $("save-deck").onclick = () => { saveCustom(deck); showMenu(); };
+  $("bk").onclick = showMenu;
+  refresh();
+}
+
+/* ================================================================ boot */
+
+showMenu();
+</script>
+</body>
+</html>
