@@ -1085,8 +1085,9 @@ function showMenu() {
 
 function deckOptions() {
   const opts = Object.entries(PREBUILT).map(([k, d]) => ({ key: k, name: d.name, cards: d.cards }));
-  const custom = loadCustom();
-  if (custom) opts.unshift({ key: "custom", name: "My Custom Deck", cards: custom });
+  const saved = loadDecks();
+  for (let i = saved.length - 1; i >= 0; i--)
+    opts.unshift({ key: "custom-" + i, name: saved[i].name + " (yours)", cards: saved[i].cards });
   return opts;
 }
 
@@ -1181,19 +1182,45 @@ function showResult(winner, loser) {
 
 /* ================================================================ deck builder */
 
-const CUSTOM_KEY = "motw-custom-deck-v1";
-function loadCustom() {
-  try { return JSON.parse(localStorage.getItem(CUSTOM_KEY)); } catch (e) { return null; }
+const DECKS_KEY = "motw-decks-v1";
+function loadDecks() {
+  try {
+    const d = JSON.parse(localStorage.getItem(DECKS_KEY));
+    if (Array.isArray(d)) return d;
+  } catch (e) {}
+  // migrate the old single-slot custom deck, if one exists
+  try {
+    const old = JSON.parse(localStorage.getItem("motw-custom-deck-v1"));
+    if (Array.isArray(old)) {
+      const migrated = [{ name: "My Custom Deck", cards: old }];
+      saveDecks(migrated);
+      return migrated;
+    }
+  } catch (e) {}
+  return [];
 }
-function saveCustom(cards) {
-  try { localStorage.setItem(CUSTOM_KEY, JSON.stringify(cards)); } catch (e) {}
+function saveDecks(decks) {
+  try { localStorage.setItem(DECKS_KEY, JSON.stringify(decks)); } catch (e) {}
 }
 
 function showBuilder() {
   app.innerHTML = "";
-  let deck = loadCustom() || PREBUILT.boxing.cards.slice();
+  let decks = loadDecks();
+  let deck = decks.length ? decks[0].cards.slice() : PREBUILT.boxing.cards.slice();
+  let deckName = decks.length ? decks[0].name : "";
   const s = el(`<div class="screen">
     <h2>Deck Builder</h2>
+    <div id="saved-decks"></div>
+    <div style="text-align:center;margin:12px 0">
+      <input id="deck-name" maxlength="30" placeholder="Deck name, e.g. My Judo Gambit"
+        style="width:100%;max-width:340px;padding:11px 14px;background:var(--panel);border:1px solid var(--border);border-radius:8px;color:var(--ink);font:inherit;text-align:center">
+      <div style="margin-top:8px">
+        <select id="start-from" style="padding:9px 12px;background:var(--panel);border:1px solid var(--border);border-radius:8px;color:var(--ink);font:inherit;max-width:280px">
+          ${Object.entries(PREBUILT).map(([k, d]) => `<option value="${k}">${d.name}</option>`).join("")}
+        </select>
+        <button class="cnt-btn" style="width:auto;padding:0 14px" id="start-load">Start from this</button>
+      </div>
+    </div>
     <div id="builder-stats"></div>
     <div id="pool"></div>
     <div style="text-align:center;margin-top:16px">
@@ -1202,6 +1229,45 @@ function showBuilder() {
     </div>
   </div>`);
   app.appendChild(s);
+  $("deck-name").value = deckName;
+
+  function renderSavedDecks() {
+    const box = $("saved-decks");
+    if (!decks.length) { box.innerHTML = ""; return; }
+    box.innerHTML = `<div class="art-head" style="color:var(--gold)">Your saved decks</div>`;
+    decks.forEach((d, i) => {
+      const st = deckStats(d.cards);
+      const row = document.createElement("div");
+      row.className = "pool-row";
+      row.innerHTML = `<span class="pname">${d.name} <span class="ptext">· ${
+        st.mastery ? "Mastery: " + ARTS[st.mastery].name : st.arts + " arts"} · hand ${st.handSize}</span></span>`;
+      const load = document.createElement("button");
+      load.className = "cnt-btn"; load.style.width = "auto"; load.style.padding = "0 12px";
+      load.textContent = "Load";
+      load.onclick = () => {
+        deck = d.cards.slice();
+        $("deck-name").value = d.name;
+        refresh();
+      };
+      const del = document.createElement("button");
+      del.className = "cnt-btn"; del.style.width = "auto"; del.style.padding = "0 12px";
+      del.style.color = "var(--red)";
+      del.textContent = "Delete";
+      del.onclick = () => {
+        if (!confirm(`Delete "${d.name}"? This cannot be undone.`)) return;
+        decks.splice(i, 1);
+        saveDecks(decks);
+        renderSavedDecks();
+      };
+      row.appendChild(load); row.appendChild(del);
+      box.appendChild(row);
+    });
+  }
+  renderSavedDecks();
+  $("start-load").onclick = () => {
+    deck = PREBUILT[$("start-from").value].cards.slice();
+    refresh();
+  };
 
   const count = (id) => deck.filter((x) => x === id).length;
 
@@ -1263,7 +1329,19 @@ function showBuilder() {
     }
   }
 
-  $("save-deck").onclick = () => { saveCustom(deck); showMenu(); };
+  $("save-deck").onclick = () => {
+    const name = $("deck-name").value.trim();
+    if (!name) { $("deck-name").focus(); $("deck-name").placeholder = "Name your deck first"; return; }
+    const existing = decks.findIndex((d) => d.name.toLowerCase() === name.toLowerCase());
+    if (existing >= 0) {
+      if (!confirm(`A deck named "${decks[existing].name}" exists. Overwrite it?`)) return;
+      decks[existing] = { name, cards: deck.slice() };
+    } else {
+      decks.unshift({ name, cards: deck.slice() });
+    }
+    saveDecks(decks);
+    showMenu();
+  };
   $("bk").onclick = showMenu;
   refresh();
 }
