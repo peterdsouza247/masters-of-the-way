@@ -172,6 +172,23 @@
     padding: 20px;
   }
   .overlay .obox { max-width: 440px; }
+  .overlay .obox.wide { max-width: 560px; width: 100%; }
+  .logview {
+    max-height: 62vh; overflow-y: auto; text-align: left;
+    background: var(--panel); border: 1px solid var(--border); border-radius: 10px;
+    padding: 12px 16px; font-size: 13.5px; margin-top: 10px;
+  }
+  .logview .lturn {
+    color: var(--gold); font-variant: small-caps; letter-spacing: 2px;
+    border-bottom: 1px solid var(--border); margin: 12px 0 4px; padding-bottom: 2px;
+  }
+  .logview .lturn:first-child { margin-top: 0; }
+  .logview .lline { color: var(--dim); padding: 1px 0; }
+  .logview .lline.hit { color: var(--ink); }
+  .recrow { text-align: left; }
+  .recrow .rsub { color: var(--dim); font-size: 13px; }
+  .recrow .rwin { color: #7fae6a; }
+  .recrow .rloss { color: var(--red); }
   .overlay h2 { font-size: 26px; }
   .overlay p { color: var(--dim); }
   .overlay button { margin-top: 14px; }
@@ -273,6 +290,7 @@
     </div>
     <div id="topnote"></div>
     <div id="log"></div>
+    <div style="text-align:right"><button id="viewlog" class="back" style="font-size:12.5px">full fight log</button></div>
   </div>
 
   <div class="fpanel" id="panel-0">
@@ -610,7 +628,8 @@ function newFighter(name, deckIds, human, persona) {
 }
 
 function startDuel(p0, p1) {
-  M = { p: [p0, p1], range: "far", top: null, active: 1, over: false, turnNo: 0, method: "K.O." };
+  M = { p: [p0, p1], range: "far", top: null, active: 1, over: false, turnNo: 0, method: "K.O.", history: [] };
+  $("viewlog").onclick = () => showFightLog(M.history, `${p0.name} vs ${p1.name}`);
   $("app").style.display = "none";
   $("duel").style.display = "block";
   $("log").innerHTML = "";
@@ -700,6 +719,25 @@ function logLine(text, strong) {
   const log = $("log");
   log.appendChild(d);
   while (log.children.length > 4) log.removeChild(log.firstChild);
+  if (M && M.history) M.history.push({ t: text, hit: !!strong });
+}
+
+function showFightLog(history, title, backLabel) {
+  const o = el(`<div class="overlay"><div class="obox wide">
+    <h2>${title}</h2>
+    <div class="logview" id="lv"></div>
+    <button class="menu-btn" style="text-align:center" id="lv-close">${backLabel || "Close"}</button>
+  </div></div>`);
+  document.body.appendChild(o);
+  const lv = o.querySelector("#lv");
+  for (const e of history) {
+    const d = document.createElement("div");
+    if (e.marker) { d.className = "lturn"; d.textContent = e.marker; }
+    else { d.className = "lline" + (e.hit ? " hit" : ""); d.textContent = e.t; }
+    lv.appendChild(d);
+  }
+  lv.scrollTop = lv.scrollHeight;
+  o.querySelector("#lv-close").onclick = () => o.remove();
 }
 
 function bannerShow(text) {
@@ -939,6 +977,7 @@ async function nextTurn() {
   M.turnNo += 1;
   const f = M.p[M.active];
   const foe = M.p[1 - M.active];
+  M.history.push({ marker: `Turn ${M.turnNo} · ${f.name} · ${cap(M.range)}${M.range === "ground" && M.top !== null ? " (" + M.p[M.top].name + " on top)" : ""}` });
 
   // start-of-turn: bleed
   if (f.st.bleed.length) {
@@ -1069,6 +1108,7 @@ function showMenu() {
       <button class="menu-btn" id="m-fight">Fight<small>Choose your deck, choose your opponent.</small></button>
       <button class="menu-btn" id="m-hotseat">Two Players<small>Pass-and-play on this device.</small></button>
       <button class="menu-btn" id="m-build">Deck Builder<small>Purity brings mastery. Mixing brings options. Choose.</small></button>
+      <button class="menu-btn" id="m-record">Fight Record<small>Review past fights, turn by turn.</small></button>
       <div style="max-width:520px;margin:26px auto;color:var(--dim);font-size:14px">
         <b style="color:var(--gold);font-weight:normal">The Way of it:</b>
         A deck that is three-quarters one art earns that art's <i>mastery passive</i> and its master techniques.
@@ -1081,6 +1121,7 @@ function showMenu() {
   $("m-fight").onclick = () => showDeckSelect(false);
   $("m-hotseat").onclick = () => showDeckSelect(true);
   $("m-build").onclick = showBuilder;
+  $("m-record").onclick = showRecord;
 }
 
 function deckOptions() {
@@ -1161,12 +1202,33 @@ function passScreen(name) {
   });
 }
 
+const FIGHTS_KEY = "motw-fights-v1";
+function loadFights() {
+  try { const f = JSON.parse(localStorage.getItem(FIGHTS_KEY)); if (Array.isArray(f)) return f; } catch (e) {}
+  return [];
+}
+function saveFight(winner, loser) {
+  const fights = loadFights();
+  fights.unshift({
+    date: new Date().toISOString().slice(0, 10),
+    title: `${M.p[0].name} vs ${M.p[1].name}`,
+    winner: winner.name, loser: loser.name,
+    method: M.method, turns: M.turnNo,
+    playerWon: winner.human && !M.hotseat,
+    hotseat: !!M.hotseat,
+    log: M.history,
+  });
+  try { localStorage.setItem(FIGHTS_KEY, JSON.stringify(fights.slice(0, 25))); } catch (e) {}
+}
+
 function showResult(winner, loser) {
+  saveFight(winner, loser);
   const o = el(`<div class="overlay"><div class="obox">
     <div class="kotext">${M.method}</div>
     <div style="width:74px;margin:0 auto 8px" class="pico">${portraitFor(winner.stats)}</div>
     <h2>${winner.name} wins</h2>
-    <p>${loser.name} has nothing left.${winner.persona ? ' "' + winner.persona.quote + '"' : ""}</p>
+    <p>${winner.name} by ${M.method.toLowerCase()}, turn ${M.turnNo}. ${loser.name} has nothing left.${winner.persona ? ' "' + winner.persona.quote + '"' : ""}</p>
+    <button class="menu-btn" style="text-align:center" id="res-review">Review the fight</button>
     <p style="font-style:italic">"${rnd([
       "The art was the answer. The fighter was the question.",
       "Styles make fights. Preparation makes winners.",
@@ -1177,7 +1239,44 @@ function showResult(winner, loser) {
     <button class="menu-btn" style="text-align:center" id="res-menu">Back to the dojo</button>
   </div></div>`);
   document.body.appendChild(o);
+  $("res-review").onclick = () => showFightLog(M.history, `${M.p[0].name} vs ${M.p[1].name}`);
   $("res-menu").onclick = () => { o.remove(); showMenu(); };
+}
+
+/* ================================================================ fight record */
+
+function showRecord() {
+  app.innerHTML = "";
+  const fights = loadFights();
+  const s = el(`<div class="screen"><h2>Fight Record</h2><div id="rl"></div>
+    <div style="text-align:center">
+      ${fights.length ? '<button class="back" id="clear-rec">clear record</button>' : ""}
+      <button class="back" id="bk">back</button>
+    </div></div>`);
+  app.appendChild(s);
+  const rl = $("rl");
+  if (!fights.length) {
+    rl.innerHTML = `<div style="text-align:center;color:var(--dim);font-style:italic;margin:24px 0">
+      No fights on record yet. The mat is waiting.</div>`;
+  }
+  fights.forEach((f) => {
+    const b = document.createElement("button");
+    b.className = "fighter-card recrow";
+    const verdict = f.hotseat
+      ? `<span style="color:var(--gold)">${f.winner} won</span>`
+      : (f.playerWon ? '<span class="rwin">Victory</span>' : '<span class="rloss">Defeat</span>');
+    b.innerHTML = `<span class="fbody">
+      <span class="fname">${f.title}</span> · ${verdict}
+      <div class="rsub">${f.method} · turn ${f.turns} · ${f.date} · tap to review</div></span>`;
+    b.onclick = () => showFightLog(f.log, f.title);
+    rl.appendChild(b);
+  });
+  if (fights.length) $("clear-rec").onclick = () => {
+    if (!confirm("Clear the entire fight record? This cannot be undone.")) return;
+    try { localStorage.removeItem(FIGHTS_KEY); } catch (e) {}
+    showRecord();
+  };
+  $("bk").onclick = showMenu;
 }
 
 /* ================================================================ deck builder */
