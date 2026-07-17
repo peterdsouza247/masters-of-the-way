@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GDD · Masters of the Way</title>
+<style>
+  :root { --bg:#030710; --panel:rgba(10,20,36,.82); --ink:#cfe6f5; --dim:#5f7f99; --cyan:#5fd0ff; --violet:#8f7bff; --border:#1c3a55; }
+  * { box-sizing: border-box; }
+  body { margin:0; background: radial-gradient(ellipse 120% 50% at 50% -8%, #0a1a30 0%, transparent 60%), var(--bg);
+    color: var(--ink); font-family: "Segoe UI","Helvetica Neue",Arial,sans-serif; font-size:16px; line-height:1.65; }
+  .page { max-width: 820px; margin: 0 auto; padding: 40px 22px 90px; }
+  .crumbs { font-size: 13px; letter-spacing: 1px; margin-bottom: 26px; }
+  .crumbs a { color: var(--dim); text-decoration: none; }
+  .crumbs a:hover { color: var(--cyan); }
+  h1 { font-weight:300; text-transform:uppercase; letter-spacing:8px; font-size:30px; color:var(--cyan);
+    margin:0 0 4px; text-shadow:0 0 40px rgba(95,208,255,.3); }
+  .docsub { color:var(--dim); margin-bottom:22px; }
+  .actions { margin: 0 0 34px; }
+  .actions a { display:inline-block; margin:0 10px 8px 0; padding:10px 22px; border:1px solid var(--cyan);
+    color:var(--cyan); text-decoration:none; text-transform:uppercase; letter-spacing:2px; font-size:12.5px;
+    background:rgba(95,208,255,.07); clip-path:polygon(9px 0,100% 0,calc(100% - 9px) 100%,0 100%); }
+  a.ghost { border-color:var(--border); color:var(--dim); background:none; }
+  .actions a:hover { background:rgba(95,208,255,.16); }
+  h2 { font-weight:300; text-transform:uppercase; letter-spacing:4px; font-size:18px; color:var(--cyan); margin:44px 0 12px; }
+  h2::before { content:"// "; color:var(--dim); }
+  h3 { font-weight:400; font-size:15px; color:var(--violet); letter-spacing:1px; margin:22px 0 6px; }
+  p, li { color:#a9c2d6; font-weight:300; }
+  b, strong { color:var(--ink); font-weight:500; }
+  table { border-collapse:collapse; width:100%; margin:14px 0; font-size:14.5px; }
+  th { text-align:left; color:var(--cyan); font-weight:400; letter-spacing:1px; text-transform:uppercase; font-size:12px; }
+  th, td { padding:8px 12px; border-bottom:1px solid var(--border); }
+  td { color:#a9c2d6; }
+  pre { background:var(--panel); border:1px solid var(--border); padding:16px 18px; overflow-x:auto;
+    font-size:13px; color:var(--cyan); clip-path:polygon(10px 0,100% 0,100% calc(100% - 10px),calc(100% - 10px) 100%,0 100%,0 10px); }
+  .spec { background:var(--panel); border:1px solid var(--border); padding:6px 18px 10px; margin:18px 0;
+    clip-path:polygon(12px 0,100% 0,100% calc(100% - 12px),calc(100% - 12px) 100%,0 100%,0 12px); }
+  ol, ul { padding-left: 22px; }
+  li { margin: 6px 0; }
+  @media (max-width:560px){ h1{font-size:22px;letter-spacing:5px} .page{padding:26px 14px 60px} th,td{padding:6px 8px} }
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="crumbs"><a href="index.html">← Peter's POCs</a></div>
+  <h1>Masters of the Way</h1>
+  <div class="docsub">Game Design Document · living document, matches the current build</div>
+  <div class="actions">
+    <a href="https://peterdsouza247.github.io/masters-of-the-way/">Play the POC</a>
+    <a class="ghost" href="https://github.com/peterdsouza247/masters-of-the-way/blob/main/README.md">Markdown source</a>
+  </div>
+
+  <div class="spec"><table>
+    <tr><td><b>Genre</b></td><td>1v1 card battler / deck builder</td></tr>
+    <tr><td><b>Theme</b></td><td>Real martial arts, treated with respect and mechanical honesty</td></tr>
+    <tr><td><b>Platform</b></td><td>HTML5, single file, desktop and mobile browsers</td></tr>
+    <tr><td><b>Session length</b></td><td>5 to 10 minutes per duel</td></tr>
+    <tr><td><b>Players</b></td><td>Solo vs AI; local 2P pass-and-play</td></tr>
+    <tr><td><b>Status</b></td><td>Playable proof of concept</td></tr>
+  </table></div>
+
+  <h2>High Concept</h2>
+  <p>One-on-one martial arts duels where decks are built from six real arts, each with a genuine mechanical identity drawn from how the art actually works. The central tension is the oldest argument in martial arts: master one way, or take what works from everywhere. Both are viable. Neither is free.</p>
+
+  <h2>Design Pillars</h2>
+  <ol>
+    <li><b>Real arts, real identities.</b> Karate is precision first strikes. Judo converts standing position into ground dominance. BJJ wins the floor. Boxing owns the pocket. Muay Thai traps you in the clinch and bleeds you. Taekwondo snipes from range. Techniques use real names (Uchi-mata, Dwi Chagi, Juji-gatame).</li>
+    <li><b>Purity versus cross-training is the meta.</b> A deck 75 percent one art earns that art's mastery passive plus two master cards. A mixed deck masters nothing but draws a bigger hand (4 + 1 per art, capped at 7) and covers every range. Same-art cards played consecutively also combo for bonus damage.</li>
+    <li><b>Range is the battlefield.</b> Far, Close, Ground (with top position). Cards are range-gated; arts fight to drag the duel into their range. Winning the range argument is winning the fight.</li>
+    <li><b>Styles make fights.</b> Seven AI opponents with distinct personalities (aggression, preferred range) that drive visibly different behavior.</li>
+  </ol>
+
+  <h2>Core Loop</h2>
+  <pre>Deck build (or pick prebuilt)
+  -> Duel: per turn draw to hand size, spend 3 stamina on cards
+     -> strikes, guards, movement, grapples, submissions
+     -> statuses: stagger, bleed, clinch, grip, control, counter
+  -> Win by KO (30 HP) or submission (tap threshold)
+  -> Fight recorded to persistent Fight Record</pre>
+
+  <h2>Systems</h2>
+  <h3>The six arts</h3>
+  <p>Each art has 8 base cards (max 2 copies) plus 2 master cards (max 1, purity-locked), and one mastery passive. Plus 4 neutral Fundamentals cards that never count against purity.</p>
+  <table>
+    <tr><th>Art</th><th>Identity</th><th>Mastery passive</th></tr>
+    <tr><td>Boxing</td><td>Cheap fast hands, guards, counters</td><td>+1 Guard each turn</td></tr>
+    <tr><td>Karate</td><td>Decisive single strikes, distance control both ways</td><td>First strike each turn +2</td></tr>
+    <tr><td>Taekwondo</td><td>Far-range kick chains, guard breaking</td><td>Strikes at Far +1</td></tr>
+    <tr><td>Muay Thai</td><td>Clinch control, elbows, bleed</td><td>Bleed effects +1</td></tr>
+    <tr><td>Judo</td><td>Grips and throws; standing becomes ground on your terms</td><td>Takedowns also stagger</td></tr>
+    <tr><td>BJJ</td><td>Sweeps, positional control, submissions</td><td>Submissions +2</td></tr>
+  </table>
+  <h3>Combat model</h3>
+  <p>20-card decks, 30 HP, 3 stamina per turn, guard resets at the start of your own turn. Submissions deal damage and force a tap if the opponent falls at or below a card-specific threshold. Statuses give each art its texture: the Plum prevents range changes, leg kicks stagger on repeat, Kumi-kata powers the next throw, Control amplifies ground offense.</p>
+  <h3>AI</h3>
+  <p>Greedy scorer over playable cards with personality weights: aggression scales damage value, preferred range scores movement, lethal lines get finisher bonuses, submissions spike when a tap is live. Rosa pulls guard and sweeps; Somchai hunts the clinch; Reyes counters in the pocket.</p>
+  <h3>Persistence</h3>
+  <p>Multiple named deck slots (save / load / delete, overwrite confirmation), and a Fight Record of the last 25 bouts storing result, method, length, and the complete turn-by-turn log, reviewable any time. Full fight log also available live during a duel and from the result screen.</p>
+
+  <h2>Content Inventory (current build)</h2>
+  <p>52 unique cards, 6 mastery passives, 7 prebuilt decks (6 pure, 1 MMA mix), 7 AI fighters with bios and signature quotes, SVG portrait set, hotseat mode with hand-hiding pass screen.</p>
+
+  <h2>UX and Presentation</h2>
+  <p>Dojo-dark palette with per-art card colors. SVG fighter portraits. Turn banners, KO / Tap Out punch-in on the result screen, impact flashes, screen shake, card play animations, pulsing low-HP bars. Mobile: 3-across cards, full-width end turn, 44px+ touch targets. Reduced-motion supported.</p>
+
+  <h2>Balance Framework</h2>
+  <ul>
+    <li>Pure deck baseline: hand 5, mastery, easy combos. Mixed 3-art deck: hand 7, full range coverage, no mastery. Target within 5 percent win rate of each other across matchups.</li>
+    <li>Range dominance should decide about 60 percent of duels; raw curve efficiency the rest.</li>
+    <li>Submissions are the aggressive-BJJ win condition; tap thresholds (6 to 8 HP) keep them finishers, not openers.</li>
+    <li>Known watch items: Widowmaker plus Boxing burst; Judo grip-throw tempo; whether Clinch needs a counter beyond Break Posture.</li>
+  </ul>
+
+  <h2>Production Roadmap (post-POC)</h2>
+  <ol>
+    <li><b>More arts:</b> Wrestling (takedown chains), Aikido (redirection counters), Kyokushin, Capoeira (movement tricks). Each must bring a new verb, not a new number.</li>
+    <li><b>Career mode:</b> tournament ladder, deck rewards between rounds, rival storylines.</li>
+    <li><b>Async or live multiplayer</b> once the loop is validated with real players.</li>
+    <li><b>Presentation:</b> fighter animation vignettes on big hits, crowd audio, stadium themes per fighter.</li>
+  </ol>
+
+  <h2>Risks</h2>
+  <p>Cultural respect is non-negotiable: technique names and art identities need review by practitioners before any commercial release. Balance across purity levels is the permanent live-ops workload. Grappling legibility for players who don't train is the biggest onboarding risk; the tutorial fight should be vs Rosa for exactly this reason.</p>
+</div>
+</body>
+</html>
