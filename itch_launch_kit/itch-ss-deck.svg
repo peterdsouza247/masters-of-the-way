@@ -1,0 +1,85 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 800" width="1000" height="800" font-family="Georgia, 'Times New Roman', serif">
+  <rect width="1000" height="800" fill="#100e0c"/>
+
+  <text x="500" y="46" text-anchor="middle" fill="#d9a441" font-size="22" letter-spacing="3">DECK BUILDER</text>
+
+  <!-- stats bar -->
+  <line x1="60" y1="64" x2="940" y2="64" stroke="#383029"/>
+  <text x="500" y="88" text-anchor="middle" font-size="14" fill="#9a8f7c">
+    <tspan fill="#7fae6a">20/20 cards</tspan> &#183; Purity <tspan fill="#d9a441">80%</tspan> Karate &#183; Hand size <tspan fill="#d9a441">5</tspan> (1 art)
+  </text>
+  <text x="500" y="110" text-anchor="middle" font-size="13.5" fill="#7fae6a">MASTERY: One Strike: your first strike each turn deals +2.</text>
+  <line x1="60" y1="124" x2="940" y2="124" stroke="#383029"/>
+
+  <!-- deck name / start-from row -->
+  <rect x="330" y="140" width="240" height="34" rx="8" fill="#1a1714" stroke="#383029"/>
+  <text x="450" y="162" text-anchor="middle" font-size="13" fill="#e8e0d0">Empty Hand (pure Karate)</text>
+  <rect x="586" y="140" width="84" height="34" rx="8" fill="#1a1714" stroke="#383029"/>
+  <text x="628" y="162" text-anchor="middle" font-size="12.5" fill="#9a8f7c">Start from</text>
+
+  <!-- Karate section -->
+  <text x="60" y="212" fill="#cfc9b8" font-size="17" letter-spacing="1">Karate</text>
+  <text x="128" y="212" fill="#9a8f7c" font-size="12" font-style="italic">mastery: One Strike, first strike each turn +2</text>
+  <line x1="60" y1="220" x2="940" y2="220" stroke="#383029"/>
+
+  <!-- row template: cost | name+text | - count + -->
+  <g font-size="13">
+    <!-- Gyaku-zuki -->
+    <text x="66" y="250" fill="#d9a441">1&#9672;</text>
+    <text x="104" y="250" fill="#e8e0d0">Gyaku-zuki <tspan fill="#9a8f7c" font-size="12">&#183; Close &#183; Reverse punch. 3 dmg.</tspan></text>
+    <rect x="820" y="235" width="26" height="22" rx="5" fill="#1a1714" stroke="#383029"/><text x="833" y="251" text-anchor="middle" fill="#e8e0d0">-</text>
+    <text x="864" y="251" text-anchor="middle" fill="#d9a441">2</text>
+    <rect x="882" y="235" width="26" height="22" rx="5" fill="#1a1714" stroke="#383029"/><text x="895" y="251" text-anchor="middle" fill="#e8e0d0">+</text>
+    <line x1="60" y1="266" x2="940" y2="266" stroke="#2a251f" stroke-dasharray="2 3"/>
+
+    <!-- Mae-geri -->
+    <text x="66" y="292" fill="#d9a441">1&#9672;</text>
+    <text x="104" y="292" fill="#e8e0d0">Mae-geri <tspan fill="#9a8f7c" font-size="12">&#183; Close/Far &#183; Front kick. 2 dmg. Push to Far.</tspan></text>
+    <rect x="820" y="277" width="26" height="22" rx="5" fill="#1a1714" stroke="#383029"/><text x="833" y="293" text-anchor="middle" fill="#e8e0d0">-</text>
+    <text x="864" y="293" text-anchor="middle" fill="#d9a441">2</text>
+    <rect x="882" y="277" width="26" height="22" rx="5" fill="#1a1714" stroke="#383029"/><text x="895" y="293" text-anchor="middle" fill="#e8e0d0">+</text>
+    <line x1="60" y1="308" x2="940" y2="308" stroke="#2a251f" stroke-dasharray="2 3"/>
+
+    <!-- Mawashi-geri -->
+    <text x="66" y="334" fill="#d9a441">2&#9672;</text>
+    <text x="104" y="334" fill="#e8e0d0">Mawashi-geri <tspan fill="#9a8f7c" font-size="12">&#183; Far &#183; Roundhouse kick. 4 dmg.</tspan></text>
+    <rect x="820" y="319" width="26" height="22" rx="5" fill="#1a1714" stroke="#383029"/><text x="833" y="335" text-anchor="middle" fill="#e8e0d0">-</text>
+    <text x="864" y="335" text-anchor="middle" fill="#d9a441">2</text>
+    <rect x="882" y="319" width="26" height="22" rx="5" fill="#1a1714" stroke="#383029"/><text x="895" y="335" text-anchor="middle" fill="#e8e0d0">+</text>
+    <line x1="60" y1="350" x2="940" y2="350" stroke="#2a251f" stroke-dasharray="2 3"/>
+
+    <!-- Shuto Strike -->
+    <text x="66" y="376" fill="#d9a441">1&#9672;</text>
+    <text x="104" y="376" fill="#e8e0d0">Shuto Strike <tspan fill="#9a8f7c" font-size="12">&#183; Close &#183; Knife hand. 2 dmg. Ignores up to 2 Guard.</tspan></text>
+    <rect x="820" y="361" width="26" height="22" rx="5" fill="#1a1714" stroke="#383029"/><text x="833" y="377" text-anchor="middle" fill="#e8e0d0">-</text>
+    <text x="864" y="377" text-anchor="middle" fill="#d9a441">2</text>
+    <rect x="882" y="361" width="26" height="22" rx="5" fill="#1a1714" stroke="#383029"/><text x="895" y="377" text-anchor="middle" fill="#e8e0d0">+</text>
+    <line x1="60" y1="392" x2="940" y2="392" stroke="#2a251f" stroke-dasharray="2 3"/>
+
+    <!-- Ippon (master) -->
+    <text x="66" y="418" fill="#d9a441">3&#9672;</text>
+    <text x="104" y="418" fill="#e8e0d0">Ippon &#10022; <tspan fill="#9a8f7c" font-size="12">&#183; Close/Far &#183; MASTER. 6 dmg. +3 if first card this turn.</tspan></text>
+    <rect x="820" y="403" width="26" height="22" rx="5" fill="#1a1714" stroke="#383029"/><text x="833" y="419" text-anchor="middle" fill="#e8e0d0">-</text>
+    <text x="864" y="419" text-anchor="middle" fill="#d9a441">1</text>
+    <rect x="882" y="403" width="26" height="22" rx="5" fill="#1a1714" stroke="#383029" opacity="0.4"/><text x="895" y="419" text-anchor="middle" fill="#e8e0d0" opacity="0.4">+</text>
+    <line x1="60" y1="434" x2="940" y2="434" stroke="#2a251f" stroke-dasharray="2 3"/>
+  </g>
+
+  <!-- Boxing section (locked master example) -->
+  <text x="60" y="478" fill="#c94f3d" font-size="17" letter-spacing="1">Boxing</text>
+  <text x="128" y="478" fill="#9a8f7c" font-size="12" font-style="italic">mastery: Sweet Science, gain 1 Guard each turn</text>
+  <line x1="60" y1="486" x2="940" y2="486" stroke="#383029"/>
+  <g opacity="0.45" font-size="13">
+    <text x="66" y="514" fill="#d9a441">3&#9672;</text>
+    <text x="104" y="514" fill="#e8e0d0">Knockout Cross &#10022; <tspan fill="#9a8f7c" font-size="12">&#183; Close &#183; MASTER. 7 dmg. +3 vs a foe at 10 HP or less.</tspan></text>
+    <text x="700" y="514" fill="#9a8f7c" font-size="12" font-style="italic">requires 75% Boxing</text>
+    <rect x="820" y="499" width="26" height="22" rx="5" fill="#1a1714" stroke="#383029"/><text x="833" y="515" text-anchor="middle" fill="#e8e0d0">-</text>
+    <text x="864" y="515" text-anchor="middle" fill="#d9a441">0</text>
+    <rect x="882" y="499" width="26" height="22" rx="5" fill="#1a1714" stroke="#383029"/><text x="895" y="515" text-anchor="middle" fill="#e8e0d0">+</text>
+  </g>
+
+  <!-- save -->
+  <rect x="350" y="700" width="300" height="46" rx="8" fill="#1a1714" stroke="#383029"/>
+  <text x="500" y="729" text-anchor="middle" fill="#e8e0d0" font-size="15">Save deck</text>
+  <text x="500" y="768" text-anchor="middle" fill="#9a8f7c" font-size="13" text-decoration="underline">back without saving</text>
+</svg>

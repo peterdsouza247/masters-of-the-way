@@ -1,0 +1,123 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 760" width="1000" height="760" font-family="Georgia, 'Times New Roman', serif">
+  <defs>
+    <linearGradient id="hp" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#a83a2a"/><stop offset="100%" stop-color="#c94f3d"/>
+    </linearGradient>
+  </defs>
+  <rect width="1000" height="760" fill="#100e0c"/>
+
+  <!-- top bar -->
+  <rect x="866" y="22" width="74" height="26" rx="6" fill="none" stroke="#383029"/>
+  <text x="903" y="40" text-anchor="middle" fill="#9a8f7c" font-size="13">Menu</text>
+
+  <!-- opponent panel -->
+  <rect x="60" y="54" width="880" height="112" rx="10" fill="#1a1714" stroke="#383029"/>
+  <g transform="translate(78,72) scale(0.5)">
+    <circle cx="50" cy="50" r="47" fill="#8a63c9" opacity=".1"/>
+    <circle cx="50" cy="50" r="47" fill="none" stroke="#8a63c9" stroke-width="2" opacity=".55"/>
+    <path d="M50 60 Q28 65 24 90 L76 90 Q72 65 50 60 Z" fill="#0d0b08"/>
+    <circle cx="50" cy="40" r="16" fill="#0d0b08"/>
+    <path d="M36 64 L50 84 L64 64" fill="none" stroke="#8a63c9" stroke-width="5"/>
+    <path d="M62 34 Q70 48 66 62" fill="none" stroke="#0d0b08" stroke-width="7"/>
+    <path d="M28 84 L72 84" stroke="#8a63c9" stroke-width="4"/>
+  </g>
+  <text x="148" y="80" fill="#e8e0d0" font-size="17">Rosa "A Dama" Silva</text>
+  <text x="148" y="100" fill="#8a63c9" font-size="13">Brazilian Jiu-Jitsu (mastery) &#10022;</text>
+  <rect x="800" y="72" width="58" height="19" rx="9" fill="#221e19" stroke="#34432c"/>
+  <text x="829" y="85" text-anchor="middle" fill="#7fae6a" font-size="11">Grip</text>
+  <rect x="148" y="112" width="710" height="12" rx="6" fill="#2a1512"/>
+  <rect x="148" y="112" width="379" height="12" rx="6" fill="url(#hp)"/>
+  <text x="148" y="146" font-size="13" fill="#9a8f7c">HP <tspan fill="#e8e0d0">16/30</tspan>     Guard <tspan fill="#e8e0d0">0</tspan>     Hand <tspan fill="#e8e0d0">5</tspan>     Deck <tspan fill="#e8e0d0">11+4</tspan></text>
+
+  <!-- arena -->
+  <rect x="60" y="178" width="880" height="150" rx="10" fill="#221e19" stroke="#383029"/>
+  <rect x="90"  y="192" width="248" height="42" rx="8" fill="none" stroke="#383029" stroke-dasharray="4 4"/>
+  <text x="214" y="218" text-anchor="middle" font-size="13" fill="#9a8f7c">Far &#183; kicking range</text>
+  <rect x="376" y="192" width="248" height="42" rx="8" fill="none" stroke="#383029" stroke-dasharray="4 4"/>
+  <text x="500" y="218" text-anchor="middle" font-size="13" fill="#9a8f7c">Close &#183; in the pocket</text>
+  <rect x="662" y="192" width="248" height="42" rx="8" fill="rgba(217,164,65,0.07)" stroke="#d9a441"/>
+  <text x="786" y="212" text-anchor="middle" font-size="13" fill="#d9a441">Ground</text>
+  <text x="786" y="228" text-anchor="middle" font-size="11" fill="#d9a441">You on top</text>
+  <text x="500" y="260" text-anchor="middle" font-size="12.5" font-style="italic" fill="#9a8f7c">You have top position.</text>
+  <text x="90" y="284" font-size="13.5" fill="#9a8f7c">You: Double Leg (2). TAKEDOWN!</text>
+  <text x="90" y="302" font-size="13.5" fill="#e8e0d0">You: Pass Guard (1). Gain Control.</text>
+  <text x="90" y="320" font-size="13.5" fill="#e8e0d0">You: Posture &amp; Strike (2).</text>
+  <text x="910" y="320" text-anchor="end" font-size="12" fill="#9a8f7c" text-decoration="underline">full fight log</text>
+
+  <!-- player panel (active) -->
+  <rect x="60" y="340" width="880" height="104" rx="10" fill="#1a1714" stroke="#d9a441"/>
+  <g transform="translate(78,356) scale(0.5)">
+    <circle cx="50" cy="50" r="47" fill="#9a8f7c" opacity=".1"/>
+    <circle cx="50" cy="50" r="47" fill="none" stroke="#9a8f7c" stroke-width="2" opacity=".55"/>
+    <path d="M50 60 Q28 65 24 90 L76 90 Q72 65 50 60 Z" fill="#0d0b08"/>
+    <circle cx="50" cy="40" r="16" fill="#0d0b08"/>
+    <path d="M30 44 Q30 18 50 18 Q70 18 70 44 L70 56 Q60 48 50 48 Q40 48 30 56 Z" fill="#1d1813" stroke="#9a8f7c" stroke-width="2"/>
+    <rect x="24" y="66" width="10" height="5" rx="2" fill="#cfc9b8" opacity=".7"/><rect x="66" y="66" width="10" height="5" rx="2" fill="#cfc9b8" opacity=".7"/>
+  </g>
+  <text x="148" y="366" fill="#e8e0d0" font-size="17">You</text>
+  <text x="148" y="386" fill="#9a8f7c" font-size="13">3 arts (cross-trained)</text>
+  <rect x="148" y="396" width="710" height="12" rx="6" fill="#2a1512"/>
+  <rect x="148" y="396" width="568" height="12" rx="6" fill="url(#hp)"/>
+  <text x="148" y="430" font-size="13" fill="#9a8f7c">HP <tspan fill="#e8e0d0">24/30</tspan>     Guard <tspan fill="#e8e0d0">3</tspan>     Deck <tspan fill="#e8e0d0">8+6</tspan></text>
+
+  <!-- hand -->
+  <!-- card 1 -->
+  <g>
+    <rect x="97" y="462" width="150" height="150" rx="9" fill="#1a1714" stroke="#383029"/>
+    <rect x="97" y="462" width="150" height="3" fill="#8a63c9"/>
+    <text x="105" y="486" fill="#e8e0d0" font-size="13">Pass Guard</text>
+    <text x="239" y="486" text-anchor="end" fill="#d9a441" font-size="15">2&#9672;</text>
+    <text x="105" y="503" fill="#8a63c9" font-size="10">JIU-JITSU</text>
+    <text x="105" y="518" fill="#9a8f7c" font-size="10">Ground &#183; top</text>
+    <text x="105" y="536" fill="#c6bca8" font-size="11">1 dmg. Gain</text>
+    <text x="105" y="550" fill="#c6bca8" font-size="11">Control.</text>
+  </g>
+  <!-- card 2 -->
+  <g>
+    <rect x="261" y="462" width="150" height="150" rx="9" fill="#1a1714" stroke="#383029"/>
+    <rect x="261" y="462" width="150" height="3" fill="#8a63c9"/>
+    <text x="269" y="486" fill="#e8e0d0" font-size="12">Posture &amp; Strike</text>
+    <text x="403" y="486" text-anchor="end" fill="#d9a441" font-size="15">1&#9672;</text>
+    <text x="269" y="503" fill="#8a63c9" font-size="10">JIU-JITSU</text>
+    <text x="269" y="518" fill="#9a8f7c" font-size="10">Ground &#183; top</text>
+    <text x="269" y="536" fill="#c6bca8" font-size="11">2 dmg.</text>
+  </g>
+  <!-- card 3 (highlighted, raised) -->
+  <g>
+    <rect x="425" y="454" width="150" height="150" rx="9" fill="#1a1714" stroke="#d9a441" stroke-width="1.5"/>
+    <rect x="425" y="454" width="150" height="3" fill="#8a63c9"/>
+    <text x="433" y="478" fill="#e8e0d0" font-size="13">Juji-gatame</text>
+    <text x="567" y="478" text-anchor="end" fill="#d9a441" font-size="15">3&#9672;</text>
+    <text x="433" y="495" fill="#8a63c9" font-size="10">JIU-JITSU</text>
+    <text x="433" y="510" fill="#9a8f7c" font-size="10">Ground &#183; top</text>
+    <text x="433" y="528" fill="#c6bca8" font-size="11">Armbar. 5 dmg</text>
+    <text x="433" y="542" fill="#c6bca8" font-size="11">(+3 with Control).</text>
+    <text x="433" y="556" fill="#c6bca8" font-size="11">Taps at 6 HP.</text>
+  </g>
+  <!-- card 4 -->
+  <g>
+    <rect x="589" y="462" width="150" height="150" rx="9" fill="#1a1714" stroke="#383029"/>
+    <rect x="589" y="462" width="150" height="3" fill="#8a63c9"/>
+    <text x="597" y="486" fill="#e8e0d0" font-size="12">Technical Stand-up</text>
+    <text x="731" y="486" text-anchor="end" fill="#d9a441" font-size="15">1&#9672;</text>
+    <text x="597" y="503" fill="#8a63c9" font-size="10">JIU-JITSU</text>
+    <text x="597" y="518" fill="#9a8f7c" font-size="10">Ground</text>
+    <text x="597" y="536" fill="#c6bca8" font-size="11">Return to Close.</text>
+    <text x="597" y="550" fill="#c6bca8" font-size="11">1 Guard.</text>
+  </g>
+  <!-- card 5 (dead / wrong range) -->
+  <g opacity="0.4">
+    <rect x="753" y="462" width="150" height="150" rx="9" fill="#1a1714" stroke="#383029"/>
+    <rect x="753" y="462" width="150" height="3" fill="#c94f3d"/>
+    <text x="761" y="486" fill="#e8e0d0" font-size="13">Cross</text>
+    <text x="895" y="486" text-anchor="end" fill="#d9a441" font-size="15">1&#9672;</text>
+    <text x="761" y="503" fill="#c94f3d" font-size="10">BOXING</text>
+    <text x="761" y="518" fill="#9a8f7c" font-size="10">Close</text>
+    <text x="761" y="536" fill="#c6bca8" font-size="11">3 dmg.</text>
+  </g>
+
+  <!-- controls -->
+  <rect x="428" y="636" width="144" height="42" rx="8" fill="rgba(217,164,65,0.1)" stroke="#d9a441"/>
+  <text x="500" y="663" text-anchor="middle" fill="#d9a441" font-size="16" letter-spacing="2">END TURN</text>
+  <text x="600" y="663" fill="#d9a441" font-size="18" letter-spacing="4">&#9672;&#9672;&#9672;&#183;&#183;</text>
+</svg>
