@@ -182,6 +182,12 @@
     font-variant: small-caps; letter-spacing: 2px; font-size: 16px;
   }
   #endturn:disabled { opacity: .35; }
+  #resetbtn {
+    padding: 11px 22px; border-radius: 8px; border: 1px solid var(--dim);
+    background: rgba(154,143,124,.08); color: var(--ink);
+    font-variant: small-caps; letter-spacing: 1px; font-size: 15px; margin-left: 10px;
+  }
+  #resetbtn:hover { border-color: var(--gold); color: var(--gold); }
   #stamina-pips { display: inline-block; margin-left: 12px; letter-spacing: 3px; color: var(--gold); }
 
   /* overlays */
@@ -295,6 +301,7 @@
     .kotext { font-size: 40px; letter-spacing: 5px; }
     #log { font-size: 12.5px; min-height: 48px; }
     #endturn { width: 100%; padding: 14px 0; font-size: 17px; }
+    #resetbtn { width: 100%; margin: 8px 0 0; padding: 12px 0; }
     #stamina-pips { display: block; margin: 8px 0 0; font-size: 18px; }
     .pool-row .ptext { display: block; }
   }
@@ -394,6 +401,7 @@
     <div id="hand"></div>
     <div id="controls">
       <button id="endturn">End Turn</button>
+      <button id="resetbtn" style="display:none">Reset stance</button>
       <span id="stamina-pips"></span>
     </div>
   </div>
@@ -821,7 +829,7 @@ function newFighter(name, deckIds, human, persona) {
 
 function startDuel(p0, p1) {
   M = { p: [p0, p1], range: "far", top: null, active: 1, over: false, turnNo: 0, method: "K.O.", history: [],
-        difficulty: SETTINGS.difficulty, hotseat: false, gauntlet: false, abandoned: false };
+        difficulty: SETTINGS.difficulty, hotseat: false, gauntlet: false, abandoned: false, stall: 0, seats: null };
   $("viewlog").onclick = () => showFightLog(M.history, `${p0.name} vs ${p1.name}`);
   $("duelmenu").onclick = openPause;
   $("runinfo").textContent = RUN ? `The Gauntlet · ${RUN.wins + 1}/${GAUNTLET_ORDER.length} · ${cap(SETTINGS.difficulty)}` : "";
@@ -913,6 +921,18 @@ function renderHand() {
   });
   $("stamina-pips").textContent = "◈".repeat(f.stamina) + "·".repeat(Math.max(0, 5 - f.stamina));
   $("endturn").disabled = false;
+  // Reset stance (mulligan): only offered when nothing in hand is playable.
+  const rb = $("resetbtn");
+  if (rb) {
+    const anyPlayable = f.hand.some((id) => canPlay(f, CARD[id]));
+    if (!anyPlayable && f.hand.length && f.stamina >= RESET_COST && !f.turnFlags.reset) {
+      rb.style.display = "";
+      rb.textContent = `Reset stance (${RESET_COST}◈)`;
+      rb.onclick = () => { Sound.ui(); resetStance(f); };
+    } else {
+      rb.style.display = "none";
+    }
+  }
 }
 
 function logLine(text, strong) {
@@ -1178,6 +1198,68 @@ function checkEnd() {
   }
 }
 
+const STALL_LIMIT = 3;   // consecutive no-action turns before the referee steps in
+const MAX_TURNS = 120;   // hard cap so a duel can never run forever
+const RESET_COST = 1;    // stamina paid to reset your stance (mulligan) when stuck
+
+// End a duel with an explicit winner (used by decision and forfeit).
+function finishMatch(winnerIdx) {
+  if (M.over) return;
+  M.over = true;
+  const w = M.p[winnerIdx], l = M.p[1 - winnerIdx];
+  logLine(`${w.name} wins by ${M.method.toLowerCase()}.`, true);
+  if (!HEADLESS) setTimeout(() => showResult(w, l), 600);
+}
+
+// A duel neither fighter is progressing goes to the judges (higher HP wins).
+function endByDecision() {
+  if (M.over) return;
+  const [a, b] = M.p;
+  let winnerIdx;
+  if (a.hp !== b.hp) winnerIdx = a.hp > b.hp ? 0 : 1;
+  else if (a.guard !== b.guard) winnerIdx = a.guard > b.guard ? 0 : 1;
+  else winnerIdx = 1 - M.active;   // tie: the fighter not on the clock takes it
+  M.method = "Decision";
+  finishMatch(winnerIdx);
+}
+
+// TI-001: after each turn, detect and break stalemates so a fight can't loop forever.
+function advanceStall(done) {
+  if (done.turnFlags.cardsPlayed === 0) M.stall = (M.stall || 0) + 1;
+  else M.stall = 0;
+  if (M.over) return;
+  if (M.stall >= STALL_LIMIT) {
+    if (M.range !== "close") {
+      M.range = "close"; M.top = null; clearControl();
+      for (const p of M.p) p.st.grip = 0;
+      logLine("Nothing doing at range. The referee brings them together.", true);
+      M.stall = 0;
+    } else {
+      endByDecision();
+    }
+  }
+  if (!M.over && M.turnNo >= MAX_TURNS) endByDecision();
+}
+
+// Mulligan: when a fighter has no playable card, spend stamina to discard the
+// hand and redraw to hand size. Once per turn. Gives the player and the AI a
+// way out of a range standoff, complementing the referee backstop (TI-001).
+function resetStance(f) {
+  const tf = f.turnFlags;
+  if (M.over || tf.reset || f.stamina < RESET_COST || !f.hand.length) return;
+  if (f.hand.some((id) => canPlay(f, CARD[id]))) return;   // only when fully stuck
+  f.stamina -= RESET_COST;
+  tf.reset = true;
+  for (const id of f.hand) f.discard.push(id);
+  f.hand = [];
+  draw(f, f.stats.handSize);
+  logLine(`${f.name} resets stance and redraws (-${RESET_COST} stamina).`, true);
+  render();
+}
+function aiShouldReset(f) {
+  return f.stamina >= RESET_COST && !f.turnFlags.reset && f.hand.length > 0;
+}
+
 /* ================================================================ turns */
 
 // Shared start-of-turn resolution, used by both the live loop and the sim.
@@ -1208,7 +1290,7 @@ function startOfTurn(f) {
   f.st.clinch = f.st.clinch ? 2 : 0;
   // buffs tick
   if (f.st.strikeBuffTurns > 0) f.st.strikeBuffTurns -= 1;
-  f.turnFlags = { lastArt: null, comboCount: 0, cardsPlayed: 0, nextStrike: 0, strikeAll: 0, firstStrikeUsed: false, lowKicks: 0, gripSnapshot: f.st.grip > 0 };
+  f.turnFlags = { lastArt: null, comboCount: 0, cardsPlayed: 0, nextStrike: 0, strikeAll: 0, firstStrikeUsed: false, lowKicks: 0, reset: false, gripSnapshot: f.st.grip > 0 };
   // draw to hand size
   draw(f, Math.max(0, f.stats.handSize - f.hand.length));
 }
@@ -1237,6 +1319,7 @@ async function nextTurn() {
   // end of turn cleanup
   const done = M.p[M.active];
   done.st.clinch = 0; // clinch on them expires after their turn
+  advanceStall(done);
   if (!M.over) nextTurn();
 }
 
@@ -1321,7 +1404,12 @@ async function aiTurn(f, foe) {
   const diff = M.difficulty || "normal";
   let safety = 20;
   while (!M.over && safety-- > 0) {
-    const pick = aiSelect(aiRankPlays(f, foe), f, diff);
+    const plays = aiRankPlays(f, foe);
+    if (!plays.length) {
+      if (aiShouldReset(f)) { resetStance(f); await sleep(650); continue; }
+      break;
+    }
+    const pick = aiSelect(plays, f, diff);
     if (!pick) break;
     playCard(f, pick.idx);
     await sleep(diff === "easy" ? 900 : 780);
@@ -1378,7 +1466,7 @@ function showMenu() {
   $("m-howto").onclick = () => go(showHowTo);
   $("m-fight").onclick = () => go(() => showDeckSelect(false));
   $("m-gauntlet").onclick = () => go(showGauntletDeckSelect);
-  $("m-hotseat").onclick = () => go(() => showDeckSelect(true));
+  $("m-hotseat").onclick = () => go(showHotseatSetup);
   $("m-build").onclick = () => go(showBuilder);
   $("m-record").onclick = () => go(showRecord);
   $("m-profile").onclick = () => go(showProfile);
@@ -1462,6 +1550,194 @@ function startHotseat(d0, d1) {
   M.hotseat = true;
 }
 
+/* ---- TI-003: two profiles in pass-and-play ---- */
+
+let HOTSEAT = null;
+
+function newSeat(name, isDevice) {
+  return { name: name, isDevice: !!isDevice, stats: emptyStats(), decks: [], profileObj: null, pick: null };
+}
+function seatDeckOptions(seat) {
+  const opts = Object.entries(PREBUILT).map(([k, d]) => ({ key: k, name: d.name, cards: d.cards }));
+  const saved = seat.decks || [];
+  for (let i = saved.length - 1; i >= 0; i--)
+    if (saved[i] && saved[i].name) opts.unshift({ key: "c-" + i, name: saved[i].name + " (yours)", cards: saved[i].cards });
+  return opts;
+}
+function seatStatusText(seat) {
+  if (seat.isDevice) return `this device's profile · record ${seat.stats.w || 0}-${seat.stats.l || 0}`;
+  if (seat.profileObj) return `loaded profile · record ${seat.stats.w || 0}-${seat.stats.l || 0}`;
+  return "guest · stats kept only if exported after the fight";
+}
+
+function showHotseatSetup() {
+  const s0 = newSeat(getProfileName(), true);
+  s0.stats = Object.assign(emptyStats(), readKey(STATS_KEY) || {});
+  s0.decks = readKey(DECKS_KEY) || [];
+  const s1 = newSeat("Player 2", false);
+  HOTSEAT = { seats: [s0, s1] };
+  renderHotseatSetup();
+}
+
+function renderHotseatSetup() {
+  app.innerHTML = "";
+  const s = el(`<div class="screen">
+    <h2>Two Players</h2>
+    <div class="sub">Each player can load their own profile so their decks travel and their stats update. Player 1 defaults to this device.</div>
+    <div id="seats"></div>
+    <div style="text-align:center;margin-top:14px">
+      <button class="menu-btn" style="text-align:center;max-width:300px" id="ht-go">Choose decks</button>
+      <button class="back" id="ht-back">back</button>
+    </div>
+  </div>`);
+  app.appendChild(s);
+  const box = $("seats");
+  HOTSEAT.seats.forEach((seat, i) => {
+    const row = el(`<div class="simcard" style="max-width:420px">
+      <div class="art-head" style="color:var(--gold)">Player ${i + 1}</div>
+      <div style="text-align:center;margin:6px 0">
+        <input class="seat-name" data-i="${i}" maxlength="24" value="${escapeAttr(seat.name)}"
+          style="width:100%;max-width:260px;padding:9px 12px;background:var(--panel2);border:1px solid var(--border);border-radius:8px;color:var(--ink);font:inherit;text-align:center">
+      </div>
+      <div style="text-align:center;color:var(--dim);font-size:13px">${seatStatusText(seat)}</div>
+      <div style="text-align:center;margin-top:6px">
+        <button class="cnt-btn" style="width:auto;padding:5px 14px" data-load="${i}">Load profile</button>
+        ${(seat.profileObj || !seat.isDevice) ? `<button class="cnt-btn" style="width:auto;padding:5px 14px" data-reset="${i}">Reset</button>` : ""}
+      </div>
+    </div>`).firstElementChild;
+    box.appendChild(row);
+  });
+  box.querySelectorAll(".seat-name").forEach((inp) => {
+    inp.oninput = () => { HOTSEAT.seats[+inp.dataset.i].name = inp.value.trim() || ("Player " + (+inp.dataset.i + 1)); };
+  });
+  box.querySelectorAll("[data-load]").forEach((b) => { b.onclick = () => importProfileInto(+b.dataset.load); });
+  box.querySelectorAll("[data-reset]").forEach((b) => {
+    b.onclick = () => { const i = +b.dataset.reset; HOTSEAT.seats[i] = newSeat("Player " + (i + 1), false); renderHotseatSetup(); };
+  });
+  $("ht-go").onclick = () => { Sound.ui(); showHotseatDeck(0); };
+  $("ht-back").onclick = showMenu;
+}
+
+function importProfileInto(i) {
+  Sound.ui();
+  const o = el(`<div class="overlay"><div class="obox">
+    <h2>Load Player ${i + 1}'s profile</h2>
+    <p>Pick their .json file, or paste their code.</p>
+    <button class="menu-btn" style="text-align:center" id="ip-file">Choose file...</button>
+    <input type="file" id="ip-fileinput" accept="application/json,.json" style="display:none">
+    <textarea id="ip-code" placeholder="...or paste a profile code" rows="3" style="width:100%;max-width:320px;padding:10px;background:var(--panel);border:1px solid var(--border);border-radius:8px;color:var(--ink);font:inherit"></textarea><br>
+    <button class="cnt-btn" style="width:auto;padding:6px 16px;margin-top:6px" id="ip-loadcode">Load code</button>
+    <div id="ip-msg" style="color:var(--red);min-height:18px;font-size:13px;margin-top:6px"></div>
+    <button class="back" id="ip-cancel">cancel</button>
+  </div></div>`);
+  document.body.appendChild(o);
+  const finish = (obj) => {
+    if (!obj) { o.querySelector("#ip-msg").textContent = "That doesn't look like a Masters of the Way profile."; return; }
+    const seat = HOTSEAT.seats[i];
+    seat.name = obj.name || seat.name;
+    seat.isDevice = false;
+    seat.profileObj = obj;
+    seat.stats = Object.assign(emptyStats(), (obj.data && obj.data.stats) || {});
+    seat.decks = (obj.data && Array.isArray(obj.data.decks)) ? obj.data.decks : [];
+    o.remove();
+    renderHotseatSetup();
+  };
+  o.querySelector("#ip-file").onclick = () => o.querySelector("#ip-fileinput").click();
+  o.querySelector("#ip-fileinput").onchange = (e) => {
+    const file = e.target.files && e.target.files[0]; if (!file) return;
+    const r = new FileReader(); r.onload = () => finish(parseProfile(String(r.result || ""))); r.readAsText(file);
+  };
+  o.querySelector("#ip-loadcode").onclick = () => { const t = o.querySelector("#ip-code").value.trim(); if (t) finish(parseProfile(t)); };
+  o.querySelector("#ip-cancel").onclick = () => o.remove();
+}
+
+function showHotseatDeck(i) {
+  app.innerHTML = "";
+  const seat = HOTSEAT.seats[i];
+  const s = el(`<div class="screen"><h2>${escapeAttr(seat.name)}'s deck</h2><div id="dl"></div>
+    <div style="text-align:center"><button class="back" id="bk">back</button></div></div>`);
+  app.appendChild(s);
+  for (const o of seatDeckOptions(seat)) {
+    const b = deckPickButton(o, (pick) => {
+      seat.pick = pick;
+      if (i === 0) showHotseatDeck(1);
+      else startHotseatSeats();
+    });
+    $("dl").appendChild(b);
+  }
+  $("bk").onclick = () => (i === 0 ? renderHotseatSetup() : showHotseatDeck(0));
+}
+
+function startHotseatSeats() {
+  const [s0, s1] = HOTSEAT.seats;
+  const p0 = newFighter(s0.name, s0.pick.cards, true, null);
+  const p1 = newFighter(s1.name, s1.pick.cards, true, null);
+  RUN = null;
+  startDuel(p0, p1);
+  M.hotseat = true;
+  M.seats = HOTSEAT.seats;
+}
+
+function seatProfileObj(seat) {
+  const base = seat.profileObj || { data: {} };
+  const data = Object.assign({}, base.data || {});
+  data.stats = seat.stats;
+  data.decks = seat.decks || data.decks || [];
+  return { app: "masters-of-the-way", type: "profile", version: 1, exportedAt: new Date().toISOString(), name: seat.name, data };
+}
+function downloadSeatProfile(seat) {
+  const obj = seatProfileObj(seat);
+  const json = JSON.stringify(obj, null, 2);
+  const safe = (seat.name || "player").replace(/[^a-z0-9\-_]+/gi, "_").toLowerCase() || "player";
+  const blob = new Blob([json], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a"); a.href = url; a.download = `motw-profile-${safe}.json`;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 4000);
+}
+
+function showHotseatResult(winner, loser) {
+  const winIdx = winner === M.p[0] ? 0 : 1;
+  const seats = M.seats;
+  bumpStats(seats[winIdx].stats, true, M.method);
+  bumpStats(seats[1 - winIdx].stats, false, M.method);
+  seats.forEach((seat) => { if (seat.isDevice) writeKey(STATS_KEY, seat.stats); });
+
+  const o = el(`<div class="overlay"><div class="obox wide">
+    <div class="kotext">${M.method}</div>
+    <h2>${winner.name} wins</h2>
+    <p>${winner.name} by ${M.method.toLowerCase()}, turn ${M.turnNo}.</p>
+    <div id="seat-saves"></div>
+    <button class="menu-btn" style="text-align:center" id="hr-review">Review the fight</button>
+    <button class="menu-btn" style="text-align:center" id="hr-menu">Back to the dojo</button>
+  </div></div>`);
+  document.body.appendChild(o);
+  Sound.win();
+  const box = o.querySelector("#seat-saves");
+  seats.forEach((seat, i) => {
+    const row = el(`<div class="simcard" style="max-width:420px">
+      <b>${escapeAttr(seat.name)}</b> · now ${seat.stats.w}-${seat.stats.l}
+      ${seat.isDevice ? '<div style="color:#7fae6a;font-size:13px">saved to this device</div>'
+        : `<div style="margin-top:6px"><button class="cnt-btn" style="width:auto;padding:5px 14px" data-dl="${i}">Save profile</button>
+           <button class="cnt-btn" style="width:auto;padding:5px 14px" data-code="${i}">Copy code</button></div>
+           <div class="hr-msg" data-i="${i}" style="color:var(--gold);font-size:12px;min-height:14px"></div>`}
+    </div>`).firstElementChild;
+    box.appendChild(row);
+  });
+  box.querySelectorAll("[data-dl]").forEach((b) => { b.onclick = () => { Sound.ui(); downloadSeatProfile(seats[+b.dataset.dl]); }; });
+  box.querySelectorAll("[data-code]").forEach((b) => {
+    b.onclick = async () => {
+      const seat = seats[+b.dataset.code];
+      const code = b64enc(JSON.stringify(seatProfileObj(seat)));
+      const msgEl = box.querySelector('.hr-msg[data-i="' + b.dataset.code + '"]');
+      try { await navigator.clipboard.writeText(code); if (msgEl) msgEl.textContent = "Code copied."; }
+      catch (e) { if (msgEl) msgEl.textContent = "Clipboard blocked; use Save profile instead."; }
+    };
+  });
+  o.querySelector("#hr-review").onclick = () => showFightLog(M.history, `${M.p[0].name} vs ${M.p[1].name}`);
+  o.querySelector("#hr-menu").onclick = () => { o.remove(); showMenu(); };
+}
+
 function passScreen(name) {
   return new Promise((resolve) => {
     const o = el(`<div class="overlay"><div class="obox">
@@ -1481,17 +1757,39 @@ function openPause() {
     <button class="menu-btn" style="text-align:center" id="pz-resume">Resume</button>
     <button class="menu-btn" style="text-align:center" id="pz-set">Settings</button>
     <button class="menu-btn" style="text-align:center" id="pz-log">Full fight log</button>
-    <button class="menu-btn" style="text-align:center" id="pz-quit">Quit to the dojo</button>
+    <button class="menu-btn" style="text-align:center" id="pz-forfeit">Forfeit the fight</button>
   </div></div>`);
   document.body.appendChild(o);
   o.querySelector("#pz-resume").onclick = () => { Sound.ui(); o.remove(); };
   o.querySelector("#pz-set").onclick = () => { openSettings(); };
   o.querySelector("#pz-log").onclick = () => showFightLog(M.history, `${M.p[0].name} vs ${M.p[1].name}`);
-  o.querySelector("#pz-quit").onclick = () => {
-    if (!confirm("Quit this fight and return to the dojo? It won't be recorded.")) return;
-    o.remove();
-    quitDuel();
-  };
+  o.querySelector("#pz-forfeit").onclick = () => { o.remove(); confirmForfeit(); };
+}
+
+// TI-002: forfeit with a warning screen and confirmation. Costs the forfeiting
+// player the fight as a recorded loss by knockout.
+function confirmForfeit() {
+  Sound.ui();
+  const who = M.hotseat ? M.p[M.active].name : "You";
+  const o = el(`<div class="overlay"><div class="obox">
+    <h2>Forfeit?</h2>
+    <p>Forfeiting ends the fight now and records it as a <b style="color:var(--red)">loss by knockout</b> for ${who}. There is no undo.</p>
+    <button class="menu-btn" style="text-align:center;border-color:var(--red);color:var(--red)" id="ff-yes">Forfeit and take the loss</button>
+    <button class="menu-btn" style="text-align:center" id="ff-no">Keep fighting</button>
+  </div></div>`);
+  document.body.appendChild(o);
+  o.querySelector("#ff-no").focus();
+  o.querySelector("#ff-no").onclick = () => { Sound.ui(); o.remove(); };
+  o.querySelector("#ff-yes").onclick = () => { o.remove(); forfeitDuel(); };
+}
+
+function forfeitDuel() {
+  if (!M || M.over) return;
+  const fIdx = M.hotseat ? M.active : 0;   // solo: the human always forfeits
+  M.p[fIdx].hp = 0;
+  M.method = "Forfeit";
+  finishMatch(1 - fIdx);
+  if (humanResolve) { const r = humanResolve; humanResolve = null; r(); }
 }
 
 function quitDuel() {
@@ -1717,6 +2015,7 @@ function showResult(winner, loser) {
 
   saveFight(winner, loser);
   if (M.method === "Tap Out") Sound.tap(); else Sound.ko();
+  if (!M.hotseat) bumpDeviceStats(winner.human, M.method);
 
   // Gauntlet runs get their own flow.
   if (M.gauntlet && RUN) {
@@ -1724,6 +2023,9 @@ function showResult(winner, loser) {
     setTimeout(() => finishGauntlet(false), 300);
     return;
   }
+
+  // Pass-and-play with per-player profiles (TI-003).
+  if (M.hotseat && M.seats) { showHotseatResult(winner, loser); return; }
 
   const o = el(`<div class="overlay"><div class="obox">
     <div class="kotext">${M.method}</div>
@@ -2097,7 +2399,12 @@ let SIM_RANGE = null;
 function simAiTurn(f, foe, diff) {
   let safety = 40;
   while (!M.over && safety-- > 0) {
-    const pick = aiSelect(aiRankPlays(f, foe), f, diff);
+    const plays = aiRankPlays(f, foe);
+    if (!plays.length) {
+      if (aiShouldReset(f)) { resetStance(f); continue; }
+      break;
+    }
+    const pick = aiSelect(plays, f, diff);
     if (!pick) break;
     playCard(f, pick.idx);
   }
@@ -2107,7 +2414,7 @@ function simMatch(cards0, cards1, diff) {
   try {
     const p0 = newFighter("A", cards0, false, personaForDeck(cards0));
     const p1 = newFighter("B", cards1, false, personaForDeck(cards1));
-    M = { p: [p0, p1], range: "far", top: null, active: 1, over: false, turnNo: 0, method: "K.O.", history: [], difficulty: diff, hotseat: false, gauntlet: false, abandoned: false };
+    M = { p: [p0, p1], range: "far", top: null, active: 1, over: false, turnNo: 0, method: "K.O.", history: [], difficulty: diff, hotseat: false, gauntlet: false, abandoned: false, stall: 0, seats: null };
     while (!M.over && M.turnNo < 250) {
       M.active = 1 - M.active;
       M.turnNo += 1;
@@ -2118,6 +2425,7 @@ function simMatch(cards0, cards1, diff) {
       simAiTurn(f, foe, diff);
       if (M.over) break;
       M.p[M.active].st.clinch = 0;
+      advanceStall(M.p[M.active]);
     }
     const timeout = p0.hp > 0 && p1.hp > 0;
     let winner;
@@ -2327,7 +2635,8 @@ function showHowTo() {
 /* ================================================================ profiles (portable save file) */
 
 const PROFILE_NAME_KEY = "motw-profile-v1";
-const PROFILE_MAP = { settings: SET_KEY, decks: DECKS_KEY, fights: FIGHTS_KEY, runs: RUNS_KEY, onboard: ONBOARD_KEY };
+const STATS_KEY = "motw-stats-v1";
+const PROFILE_MAP = { settings: SET_KEY, decks: DECKS_KEY, fights: FIGHTS_KEY, runs: RUNS_KEY, onboard: ONBOARD_KEY, stats: STATS_KEY };
 const escapeAttr = (s) => String(s).replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
 function getProfileName() {
@@ -2405,11 +2714,36 @@ function applyProfile(obj, mode) {
       runs: (Array.isArray(ex.runs) ? ex.runs : []).concat(Array.isArray(d.runs.runs) ? d.runs.runs : []).slice(0, 20),
     });
   }
+  if (d.stats && typeof d.stats === "object") {
+    const ex = Object.assign(emptyStats(), readKey(STATS_KEY) || {});
+    writeKey(STATS_KEY, {
+      w: Math.max(ex.w, d.stats.w || 0), l: Math.max(ex.l, d.stats.l || 0),
+      ko: Math.max(ex.ko, d.stats.ko || 0), sub: Math.max(ex.sub, d.stats.sub || 0),
+    });
+  }
   if (d.onboard && (d.onboard.tutorialDone || loadOnboard().tutorialDone)) markTutorialDone();
 }
 
+function emptyStats() { return { w: 0, l: 0, ko: 0, sub: 0 }; }
+function bumpStats(s, won, method) {
+  if (won) { s.w++; if (method === "Tap Out") s.sub++; else s.ko++; }
+  else s.l++;
+  return s;
+}
+function bumpDeviceStats(won, method) {
+  const s = Object.assign(emptyStats(), readKey(STATS_KEY) || {});
+  bumpStats(s, won, method);
+  writeKey(STATS_KEY, s);
+}
 function careerStats() {
-  const fights = loadFights(), runs = loadRuns();
+  const runs = loadRuns();
+  const s = readKey(STATS_KEY);
+  if (s && typeof s === "object") {
+    const w = s.w || 0, l = s.l || 0;
+    return { w, l, ko: s.ko || 0, sub: s.sub || 0, total: w + l, best: runs.best || 0, cleared: runs.completions || 0 };
+  }
+  // legacy fallback: derive from the fight record
+  const fights = loadFights();
   let w = 0, l = 0, ko = 0, sub = 0;
   for (const f of fights) {
     if (f.hotseat) continue;
