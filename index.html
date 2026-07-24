@@ -2,8 +2,19 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Masters of the Way</title>
+<meta name="description" content="Masters of the Way: a martial-arts card battler built from six real arts, each with a genuine mechanical identity. Master one way, or take what works from everywhere.">
+<meta name="theme-color" content="#100e0c">
+<meta name="color-scheme" content="dark">
+<meta property="og:title" content="Masters of the Way">
+<meta property="og:description" content="One-on-one martial arts duels. Six real arts, each with a genuine mechanical identity. Master one way, or take what works from everywhere.">
+<meta property="og:type" content="website">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Masters of the Way">
 <style>
   :root {
     --bg: #100e0c;
@@ -58,6 +69,8 @@
     text-align: left; color: var(--ink); transition: border-color .15s;
   }
   .fighter-card:hover { border-color: var(--gold); }
+  .fighter-card.disabled { opacity: .5; cursor: default; }
+  .fighter-card.disabled:hover { border-color: var(--border); }
   .fighter-card .fname { font-size: 17px; }
   .fighter-card .fart { font-variant: small-caps; letter-spacing: 1px; }
   .fighter-card .fdesc { color: var(--dim); font-size: 14px; font-style: italic; }
@@ -114,6 +127,12 @@
   }
   .status-chip.bad { color: var(--red); border-color: #5a2f28; }
   .status-chip.good { color: #7fae6a; border-color: #34432c; }
+
+  /* duel top bar */
+  #duelbar { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: 12.5px; }
+  #duelbar .runinfo { color: var(--gold); font-variant: small-caps; letter-spacing: 1px; }
+  #duelmenu { background: none; border: 1px solid var(--border); border-radius: 6px; color: var(--dim); padding: 4px 12px; font-size: 13px; }
+  #duelmenu:hover { border-color: var(--gold); color: var(--gold); }
 
   /* arena */
   #arena {
@@ -173,6 +192,14 @@
   }
   .overlay .obox { max-width: 440px; }
   .overlay .obox.wide { max-width: 560px; width: 100%; }
+  .overlay .setrow {
+    display: flex; justify-content: space-between; align-items: center; gap: 14px;
+    max-width: 300px; margin: 12px auto; font-size: 15px;
+  }
+  .overlay .setrow button {
+    padding: 8px 16px; background: var(--panel); border: 1px solid var(--gold);
+    color: var(--gold); border-radius: 8px; min-width: 74px;
+  }
   .logview {
     max-height: 62vh; overflow-y: auto; text-align: left;
     background: var(--panel); border: 1px solid var(--border); border-radius: 10px;
@@ -192,6 +219,12 @@
   .overlay h2 { font-size: 26px; }
   .overlay p { color: var(--dim); }
   .overlay button { margin-top: 14px; }
+  .ladder { text-align: left; max-width: 360px; margin: 10px auto; }
+  .ladder .lrow { display: flex; align-items: center; gap: 10px; padding: 5px 4px; border-bottom: 1px dotted #2a251f; font-size: 14px; }
+  .ladder .lrow .mark { width: 20px; text-align: center; }
+  .ladder .lrow.done { color: #7fae6a; }
+  .ladder .lrow.now { color: var(--gold); }
+  .ladder .lrow.todo { color: var(--dim); }
 
   /* floaters */
   .floater {
@@ -268,6 +301,49 @@
   @media (prefers-reduced-motion: reduce) {
     * { animation: none !important; transition: none !important; }
   }
+  body.no-motion *, body.no-motion *::before, body.no-motion *::after {
+    animation: none !important; transition: none !important;
+  }
+
+  /* ---- accessibility ---- */
+  .sr-only {
+    position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+    overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
+  }
+  button:focus-visible, select:focus-visible, input:focus-visible, [tabindex]:focus-visible {
+    outline: 3px solid var(--gold); outline-offset: 2px;
+  }
+  .kbfocus { outline: 3px solid var(--gold) !important; outline-offset: 2px; }
+
+  /* ---- balance simulator ---- */
+  .simtable { border-collapse: collapse; margin: 10px auto; font-size: 12px; }
+  .simtable th, .simtable td { border: 1px solid var(--border); padding: 3px 7px; text-align: center; white-space: nowrap; }
+  .simtable th { color: var(--gold); font-weight: normal; }
+  .simtable td.hot { color: var(--red); }
+  .simtable td.cold { color: #7fae6a; }
+  .simcard { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 10px 14px; margin: 10px auto; max-width: 620px; }
+  .simcard b { color: var(--gold); font-weight: normal; }
+  .simcard .flag { color: var(--red); }
+  .simcard .good { color: #7fae6a; }
+
+  /* ---- onboarding ---- */
+  .howto p { max-width: 620px; margin: 12px auto; }
+  .howto b { color: var(--gold); font-weight: normal; }
+  .glossary { max-width: 620px; margin: 16px auto; background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 12px 16px; font-size: 14px; }
+  .glossary > b { color: var(--gold); display: block; margin-bottom: 6px; font-variant: small-caps; letter-spacing: 1px; }
+  .glossary div { padding: 3px 0; color: var(--dim); }
+  .glossary .gk { color: var(--ink); }
+  .status-chip[title] { cursor: help; }
+  #coach {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 40;
+    background: rgba(20, 17, 14, .97); border-top: 2px solid var(--gold);
+    color: var(--ink); padding: 12px 16px 14px; font-size: 14px; text-align: center;
+    transform: translateY(115%); transition: transform .3s ease;
+  }
+  #coach.show { transform: none; }
+  #coach .ctext { color: var(--ink); }
+  #coach #coach-skip { color: var(--gold); }
+  #duel.tutorial { padding-bottom: 108px; }
 </style>
 </head>
 <body>
@@ -279,10 +355,16 @@
   Part of <a href="https://peterdsouza247.github.io/pocs/" style="color:var(--gold)">Peter's POCs</a>
   · <a href="https://peterdsouza247.github.io/pocs/gdds/gdd_masters_of_the_way.html" style="color:var(--dim)">design document</a> · © 2026 Peter Brendan
 </footer>
-  
+
 <div id="app"></div>
-<div id="banner"></div>
-<div id="duel">
+<div id="banner" aria-hidden="true"></div>
+<div id="a11y-live" class="sr-only" role="status" aria-live="assertive"></div>
+<div id="coach" aria-hidden="true"></div>
+<div id="duel" role="application" aria-label="Duel board">
+  <div id="duelbar">
+    <span class="runinfo" id="runinfo"></span>
+    <button id="duelmenu">☰ Menu</button>
+  </div>
   <div class="fpanel" id="panel-1">
     <div class="frow"><span class="pico" id="pico-1"></span><span class="name" id="name-1"></span><span class="style" id="style-1"></span><span class="mastery" id="mastery-1"></span></div>
     <div class="hpbar"><div class="hpfill" id="hp-1"></div></div>
@@ -292,12 +374,12 @@
 
   <div id="arena">
     <div id="rangeviz">
-      <div class="zone" id="zone-far">Far · kicking range</div>
-      <div class="zone" id="zone-close">Close · in the pocket</div>
-      <div class="zone" id="zone-ground">Ground</div>
+      <div class="zone" id="zone-far" title="Kicking range. Taekwondo and Karate thrive here.">Far · kicking range</div>
+      <div class="zone" id="zone-close" title="The pocket. Boxing, Muay Thai, and grappling setups.">Close · in the pocket</div>
+      <div class="zone" id="zone-ground" title="On the mat. Top position controls the fight. BJJ's domain.">Ground</div>
     </div>
-    <div id="topnote"></div>
-    <div id="log"></div>
+    <div id="topnote" aria-live="polite"></div>
+    <div id="log" role="log" aria-live="polite" aria-atomic="false"></div>
     <div style="text-align:right"><button id="viewlog" class="back" style="font-size:12.5px">full fight log</button></div>
   </div>
 
@@ -334,6 +416,89 @@ function shuffle(a) {
 }
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
+
+// When true, the engine runs without touching the DOM, audio, or timers
+// (used by the balance simulator). All presentation helpers early-return on it.
+let HEADLESS = false;
+
+const VERSION = "1.0.0";
+
+/* ================================================================ settings */
+
+const SET_KEY = "motw-settings-v1";
+let SETTINGS = loadSettings();
+function loadSettings() {
+  const d = { sound: true, reduceMotion: false, difficulty: "normal" };
+  try {
+    const s = JSON.parse(localStorage.getItem(SET_KEY));
+    if (s && typeof s === "object") return Object.assign(d, s);
+  } catch (e) {}
+  return d;
+}
+function saveSettings() {
+  try { localStorage.setItem(SET_KEY, JSON.stringify(SETTINGS)); } catch (e) {}
+  applySettings();
+}
+function applySettings() {
+  document.body.classList.toggle("no-motion", !!SETTINGS.reduceMotion);
+}
+
+/* ================================================================ audio (synth, no files) */
+
+const Sound = (function () {
+  let ctx = null;
+  function ac() {
+    if (!ctx) {
+      try { ctx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) {}
+    }
+    return ctx;
+  }
+  function tone(freq, dur, type, gain, slideTo) {
+    if (HEADLESS || !SETTINGS.sound) return;
+    const c = ac(); if (!c) return;
+    if (c.state === "suspended") c.resume();
+    const o = c.createOscillator(), g = c.createGain();
+    o.type = type || "sine";
+    o.frequency.setValueAtTime(freq, c.currentTime);
+    if (slideTo) o.frequency.exponentialRampToValueAtTime(Math.max(20, slideTo), c.currentTime + dur);
+    g.gain.setValueAtTime(0.0001, c.currentTime);
+    g.gain.exponentialRampToValueAtTime(gain || 0.2, c.currentTime + 0.012);
+    g.gain.exponentialRampToValueAtTime(0.0001, c.currentTime + dur);
+    o.connect(g); g.connect(c.destination);
+    o.start(); o.stop(c.currentTime + dur + 0.03);
+  }
+  function noise(dur, gain, cutoff) {
+    if (HEADLESS || !SETTINGS.sound) return;
+    const c = ac(); if (!c) return;
+    if (c.state === "suspended") c.resume();
+    const n = Math.max(1, Math.floor(c.sampleRate * dur));
+    const buf = c.createBuffer(1, n, c.sampleRate);
+    const data = buf.getChannelData(0);
+    for (let i = 0; i < n; i++) data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / n, 2);
+    const src = c.createBufferSource(); src.buffer = buf;
+    const f = c.createBiquadFilter(); f.type = "lowpass"; f.frequency.value = cutoff || 1200;
+    const g = c.createGain(); g.gain.value = gain || 0.25;
+    src.connect(f); f.connect(g); g.connect(c.destination);
+    src.start();
+  }
+  return {
+    resume() { const c = ac(); if (c && c.state === "suspended") c.resume(); },
+    hit() { noise(0.16, 0.32, 950); tone(150, 0.13, "square", 0.10, 70); },
+    heavy() { noise(0.28, 0.42, 700); tone(95, 0.22, "square", 0.16, 45); },
+    block() { tone(330, 0.10, "triangle", 0.10, 250); noise(0.05, 0.13, 2200); },
+    takedown() { noise(0.42, 0.4, 480); tone(72, 0.34, "sine", 0.18, 38); },
+    bleed() { tone(230, 0.24, "sine", 0.07, 150); },
+    ui() { tone(540, 0.05, "triangle", 0.06); },
+    ko() { noise(0.5, 0.48, 620); tone(190, 0.5, "square", 0.20, 40); },
+    tap() { tone(460, 0.28, "sine", 0.14, 240); setTimeout(() => tone(300, 0.4, "sine", 0.12, 180), 180); },
+    bell() { tone(880, 0.5, "sine", 0.13, 860); tone(1320, 0.45, "sine", 0.06); },
+    win() {
+      tone(523, 0.16, "sine", 0.13);
+      setTimeout(() => tone(659, 0.16, "sine", 0.13), 150);
+      setTimeout(() => tone(784, 0.32, "sine", 0.13), 310);
+    },
+  };
+})();
 
 /* ================================================================ arts & cards */
 
@@ -548,6 +713,24 @@ function deckStats(cardIds) {
   };
 }
 
+// Reject corrupted / illegal saved decks before they enter a match.
+function validateDeck(cardIds) {
+  if (!Array.isArray(cardIds) || cardIds.length !== DECK_SIZE) return false;
+  const counts = {};
+  for (const id of cardIds) {
+    const c = CARD[id];
+    if (!c) return false;
+    counts[id] = (counts[id] || 0) + 1;
+    const max = c.master ? MASTER_COPIES : MAX_COPIES;
+    if (counts[id] > max) return false;
+  }
+  const st = deckStats(cardIds);
+  for (const id of Object.keys(counts)) {
+    if (CARD[id].master && st.mastery !== CARD[id].art) return false;
+  }
+  return true;
+}
+
 /* ================================================================ portraits */
 
 function portraitSVG(key) {
@@ -617,6 +800,7 @@ const OPPONENTS = [
     bio:"No dojo, no lineage, no flag on the wall. Cross learned boxing in one gym and wrestling in another and was thrown out of both for asking too many questions. Traditionalists call the style disrespectful. The style calls their champions 6 and 0.",
     quote:"Your art has a blind spot. I live there." },
 ];
+const OPP = Object.fromEntries(OPPONENTS.map((o) => [o.key, o]));
 
 /* ================================================================ duel state */
 
@@ -636,13 +820,17 @@ function newFighter(name, deckIds, human, persona) {
 }
 
 function startDuel(p0, p1) {
-  M = { p: [p0, p1], range: "far", top: null, active: 1, over: false, turnNo: 0, method: "K.O.", history: [] };
+  M = { p: [p0, p1], range: "far", top: null, active: 1, over: false, turnNo: 0, method: "K.O.", history: [],
+        difficulty: SETTINGS.difficulty, hotseat: false, gauntlet: false, abandoned: false };
   $("viewlog").onclick = () => showFightLog(M.history, `${p0.name} vs ${p1.name}`);
+  $("duelmenu").onclick = openPause;
+  $("runinfo").textContent = RUN ? `The Gauntlet · ${RUN.wins + 1}/${GAUNTLET_ORDER.length} · ${cap(SETTINGS.difficulty)}` : "";
   $("app").style.display = "none";
   $("duel").style.display = "block";
   $("log").innerHTML = "";
   $("pico-0").innerHTML = portraitFor(p0.stats);
   $("pico-1").innerHTML = portraitFor(p1.stats);
+  Sound.bell();
   bannerShow("Fight");
   logLine(`${p0.name} vs ${p1.name}. Touch gloves. Or don't.`, true);
   render();
@@ -652,6 +840,7 @@ function startDuel(p0, p1) {
 /* ================================================================ rendering */
 
 function render() {
+  if (HEADLESS) return;
   const [me, foe] = [M.p[0], M.p[1]];
   for (const i of [0, 1]) {
     const f = M.p[i];
@@ -677,21 +866,24 @@ function render() {
     ? (M.top !== null ? M.p[M.top].name + " has top position." : "Scramble on the ground.")
     : (M.range === "close" ? "Trading in the pocket." : "Probing at distance.");
   renderHand();
+  if (M.tutorial && !M.over) tutorialCheck();
 }
 
 function statusChips(f) {
   const chips = [];
-  if (f.st.stagger) chips.push(`<span class="status-chip bad">Staggered</span>`);
-  if (f.st.bleed.length) chips.push(`<span class="status-chip bad">Bleeding ${f.st.bleed.length}</span>`);
-  if (f.st.clinch) chips.push(`<span class="status-chip bad">Clinched</span>`);
-  if (f.st.grip) chips.push(`<span class="status-chip good">Grip</span>`);
-  if (f.st.control) chips.push(`<span class="status-chip good">Control</span>`);
-  if (f.st.counter) chips.push(`<span class="status-chip good">Counter ${f.st.counter}</span>`);
-  if (f.st.strikeBuffTurns > 0) chips.push(`<span class="status-chip good">Iron Shins</span>`);
+  const chip = (cls, label, title) => `<span class="status-chip ${cls}" title="${title}" role="note" aria-label="${label}. ${title}">${label}</span>`;
+  if (f.st.stagger) chips.push(chip("bad", "Staggered", "-1 stamina on their next turn."));
+  if (f.st.bleed.length) chips.push(chip("bad", `Bleeding ${f.st.bleed.length}`, "Loses HP at the start of each of their turns."));
+  if (f.st.clinch) chips.push(chip("bad", "Clinched", "Can't change range next turn. Trapped in the pocket."));
+  if (f.st.grip) chips.push(chip("good", "Grip", "Your next throw deals +2."));
+  if (f.st.control) chips.push(chip("good", "Control", "Top dominance: your submissions +3 and ground strikes +1."));
+  if (f.st.counter) chips.push(chip("good", `Counter ${f.st.counter}`, "The next strike against you costs the attacker HP."));
+  if (f.st.strikeBuffTurns > 0) chips.push(chip("good", "Iron Shins", "Your strikes deal +1 this turn and next."));
   return chips.join("");
 }
 
 function renderHand() {
+  if (HEADLESS) return;
   const f = M.p[M.active];
   const hand = $("hand");
   hand.innerHTML = "";
@@ -709,8 +901,11 @@ function renderHand() {
       `<span class="cart" style="color:${ARTS[c.art].color}">${ARTS[c.art].name}${c.master ? " ✦" : ""}</span>` +
       `<span class="cranges">${c.ranges.map(cap).join(" · ")}${c.needTop ? " · top" : ""}</span>` +
       `<span class="ctext">${c.text}</span>`;
+    b.setAttribute("aria-label", `Card ${idx + 1}: ${c.name}, ${ARTS[c.art].name}, cost ${c.cost}. ${c.text} ${ok ? "Playable." : "Not playable now."}`);
+    b.setAttribute("aria-disabled", ok ? "false" : "true");
     if (ok) b.onclick = () => {
       b.onclick = null;
+      Sound.resume(); Sound.ui();
       b.classList.add("zoomout");
       setTimeout(() => playCard(f, idx), 170);
     };
@@ -721,6 +916,7 @@ function renderHand() {
 }
 
 function logLine(text, strong) {
+  if (HEADLESS) return;
   const d = document.createElement("div");
   d.className = "l" + (strong ? " hit" : "");
   d.textContent = text;
@@ -749,6 +945,8 @@ function showFightLog(history, title, backLabel) {
 }
 
 function bannerShow(text) {
+  if (HEADLESS) return;
+  announce(text);
   const b = $("banner");
   b.textContent = text;
   b.classList.remove("show");
@@ -757,6 +955,7 @@ function bannerShow(text) {
 }
 
 function impactFlash(panelId) {
+  if (HEADLESS) return;
   const panel = $(panelId);
   panel.style.position = "relative";
   const d = document.createElement("div");
@@ -766,6 +965,7 @@ function impactFlash(panelId) {
 }
 
 function floater(panelId, text, color) {
+  if (HEADLESS) return;
   const panel = $(panelId);
   const s = document.createElement("span");
   s.className = "floater";
@@ -844,27 +1044,27 @@ function applyDamage(att, def, c, dmg) {
     att.hp -= def.st.counter;
     logLine(`${def.name} counters for ${def.st.counter}!`, true);
     floater("panel-" + M.p.indexOf(att), "-" + def.st.counter, "var(--red)");
+    Sound.block();
     def.st.counter = 0;
     if (att.hp <= 0) return;
   }
-  let remaining = dmg;
-  let guard = def.guard;
-  const ignore = Math.min(fx.ignoreGuard || 0, guard);
-  guard -= ignore;
-  const absorbed = Math.min(guard, remaining);
-  def.guard = guard - absorbed + ignore * 0; // ignored guard is bypassed, not destroyed
-  def.guard = Math.max(0, def.guard);
-  remaining -= absorbed;
-  if (fx.ignoreGuard) def.guard = Math.max(0, def.guard); // already handled
+  // guard absorbs; ignoreGuard bypasses (does not destroy) up to N points of guard
+  const ignore = Math.min(fx.ignoreGuard || 0, def.guard);
+  const effectiveGuard = def.guard - ignore;
+  const absorbed = Math.min(effectiveGuard, dmg);
+  def.guard = Math.max(0, def.guard - absorbed);   // only guard that actually blocked is spent
+  const remaining = dmg - absorbed;
   if (remaining > 0) {
     def.hp -= remaining;
     floater("panel-" + defIdx, "-" + remaining);
     impactFlash("panel-" + defIdx);
+    (remaining >= 5 ? Sound.heavy() : Sound.hit());
     $("panel-" + defIdx).classList.remove("shake");
     void $("panel-" + defIdx).offsetWidth;
     $("panel-" + defIdx).classList.add("shake");
   } else if (dmg > 0) {
     floater("panel-" + defIdx, "blocked", "var(--dim)");
+    Sound.block();
   }
 }
 
@@ -916,12 +1116,13 @@ function playCard(f, handIdx) {
   // position changes (clinched fighters can't move the fight)
   const clinched = f.st.clinch === 2; // set to 2 during their own turn
   if (!clinched) {
-    if (fx.takedown) { M.range = "ground"; M.top = meIdx; msg += ". TAKEDOWN!"; clearOnPositionChange(); }
-    else if (fx.takedownIfGrip && hadGrip) { M.range = "ground"; M.top = meIdx; msg += ". TAKEDOWN!"; clearOnPositionChange(); }
-    if (fx.pullguard) { M.range = "ground"; M.top = 1 - meIdx; msg += ". Pulls guard."; clearOnPositionChange(); }
+    if (fx.takedown) { M.range = "ground"; M.top = meIdx; msg += ". TAKEDOWN!"; Sound.takedown(); clearOnPositionChange(); }
+    else if (fx.takedownIfGrip && hadGrip) { M.range = "ground"; M.top = meIdx; msg += ". TAKEDOWN!"; Sound.takedown(); clearOnPositionChange(); }
+    if (fx.pullguard) { M.range = "ground"; M.top = 1 - meIdx; msg += ". Pulls guard."; Sound.takedown(); clearOnPositionChange(); }
     if (fx.sweep && M.range === "ground") {
       M.top = meIdx;
       msg += ". SWEEP!";
+      Sound.takedown();
       foe.st.control = 0;
     }
     if (fx.standup && M.range === "ground") { M.range = "close"; M.top = null; clearControl(); msg += ". Back to the feet."; }
@@ -972,33 +1173,31 @@ function checkEnd() {
     if (M.p[i].hp <= 0 && !M.over) {
       M.over = true;
       const w = M.p[1 - i], l = M.p[i];
-      setTimeout(() => showResult(w, l), 600);
+      if (!HEADLESS) setTimeout(() => showResult(w, l), 600);
     }
   }
 }
 
 /* ================================================================ turns */
 
-async function nextTurn() {
-  if (M.over) return;
-  M.active = 1 - M.active;
-  M.turnNo += 1;
-  const f = M.p[M.active];
-  const foe = M.p[1 - M.active];
-  M.history.push({ marker: `Turn ${M.turnNo} · ${f.name} · ${cap(M.range)}${M.range === "ground" && M.top !== null ? " (" + M.p[M.top].name + " on top)" : ""}` });
-
+// Shared start-of-turn resolution, used by both the live loop and the sim.
+function startOfTurn(f) {
+  if (!HEADLESS) M.history.push({ marker: `Turn ${M.turnNo} · ${f.name} · ${cap(M.range)}${M.range === "ground" && M.top !== null ? " (" + M.p[M.top].name + " on top)" : ""}` });
   // start-of-turn: bleed
   if (f.st.bleed.length) {
     const b = f.st.bleed.shift();
     f.hp -= b;
     logLine(`${f.name} bleeds for ${b}.`);
     floater("panel-" + M.active, "-" + b);
+    Sound.bleed();
     checkEnd();
-    if (M.over) { render(); return; }
+    if (M.over) return;
   }
   // guard resets at the start of your own turn
   f.guard = 0;
   if (f.stats.mastery === "boxing") f.guard = 1;
+  // counter is a reaction window: it expires at the start of your own next turn if unused
+  f.st.counter = 0;
   // stamina
   f.stamina = 3 + f.st.staminaNext - (f.st.stagger ? 1 : 0);
   f.stamina = Math.max(0, Math.min(5, f.stamina));
@@ -1009,21 +1208,32 @@ async function nextTurn() {
   f.st.clinch = f.st.clinch ? 2 : 0;
   // buffs tick
   if (f.st.strikeBuffTurns > 0) f.st.strikeBuffTurns -= 1;
-  // counter expires when your own turn comes around again? No: counter persists until used or your next turn ends. Keep until used.
   f.turnFlags = { lastArt: null, comboCount: 0, cardsPlayed: 0, nextStrike: 0, strikeAll: 0, firstStrikeUsed: false, lowKicks: 0, gripSnapshot: f.st.grip > 0 };
   // draw to hand size
   draw(f, Math.max(0, f.stats.handSize - f.hand.length));
+}
 
+async function nextTurn() {
+  if (M.over) return;
+  M.active = 1 - M.active;
+  M.turnNo += 1;
+  const f = M.p[M.active];
+  const foe = M.p[1 - M.active];
+
+  startOfTurn(f);
   render();
+  if (M.over) return;
   if (M.turnNo > 1) bannerShow(f.human && !M.hotseat ? "Your Turn" : f.name);
 
   if (f.human) {
     if (M.hotseat && M.turnNo > 1) await passScreen(f.name);
+    if (M.over) return;
     render();
     await humanTurn();
   } else {
     await aiTurn(f, foe);
   }
+  if (M.over) return;
   // end of turn cleanup
   const done = M.p[M.active];
   done.st.clinch = 0; // clinch on them expires after their turn
@@ -1035,6 +1245,7 @@ function humanTurn() {
     humanResolve = resolve;
     $("endturn").onclick = () => {
       $("endturn").onclick = null;
+      Sound.ui();
       const r = humanResolve; humanResolve = null;
       r();
     };
@@ -1080,19 +1291,40 @@ function aiScore(f, foe, c, persona) {
   return score;
 }
 
+function aiRankPlays(f, foe) {
+  const playable = f.hand
+    .map((id, idx) => ({ c: CARD[id], idx }))
+    .filter((x) => canPlay(f, x.c));
+  playable.forEach((x) => { x.score = aiScore(f, foe, x.c, f.persona); });
+  playable.sort((a, b) => b.score - a.score);
+  return playable;
+}
+
+// Returns the chosen play, or null to end the turn. Difficulty tunes decision
+// quality only. Opponents never get extra stats.
+function aiSelect(playable, f, diff) {
+  if (!playable.length) return null;
+  let pick = playable[0];
+  if (diff === "easy") {
+    if (Math.random() < 0.18 && f.turnFlags.cardsPlayed > 0) return null;
+    const top = playable.slice(0, Math.min(3, playable.length));
+    pick = top[Math.floor(Math.random() * top.length)];
+  } else if (diff === "normal") {
+    if (Math.random() < 0.08 && f.turnFlags.cardsPlayed > 0 && pick.score < 3) return null;
+  }
+  if (pick.score < 0.5 && f.turnFlags.cardsPlayed > 0) return null;
+  return pick;
+}
+
 async function aiTurn(f, foe) {
   await sleep(650);
+  const diff = M.difficulty || "normal";
   let safety = 20;
   while (!M.over && safety-- > 0) {
-    const playable = f.hand
-      .map((id, idx) => ({ c: CARD[id], idx }))
-      .filter((x) => canPlay(f, x.c));
-    if (!playable.length) break;
-    playable.sort((a, b) => aiScore(f, foe, b.c, f.persona) - aiScore(f, foe, a.c, f.persona));
-    const best = playable[0];
-    if (aiScore(f, foe, best.c, f.persona) < 0.5 && f.turnFlags.cardsPlayed > 0) break;
-    playCard(f, best.idx);
-    await sleep(800);
+    const pick = aiSelect(aiRankPlays(f, foe), f, diff);
+    if (!pick) break;
+    playCard(f, pick.idx);
+    await sleep(diff === "easy" ? 900 : 780);
   }
   await sleep(350);
 }
@@ -1107,17 +1339,33 @@ function el(html) {
 
 function showMenu() {
   $("duel").style.display = "none";
+  $("duel").classList.remove("tutorial");
+  clearCoach();
   app.style.display = "block";
   app.innerHTML = "";
+  const isNew = !loadFights().length && !loadOnboard().tutorialDone;
+  const newHint = isNew ? `<div class="sub" style="color:var(--gold);margin-bottom:14px">New to the dojo? Start with How to Play.</div>` : "";
+  const runs = loadRuns();
+  const gauntletSub = runs.best > 0
+    ? `Seven masters, one run. Best streak: ${runs.best}/${GAUNTLET_ORDER.length}${runs.completions ? " · cleared " + runs.completions + "×" : ""}.`
+    : "Seven masters, one run. Heal a little between fights. Lose once and it is over.";
   const s = el(`
     <div class="screen">
       <h1>Masters of the Way</h1>
       <div class="sub">one fight. two philosophies. every art has an answer.</div>
+      ${newHint}
+      <button class="menu-btn" id="m-howto">How to Play<small>Learn the rules, then a guided first fight vs Rosa.</small></button>
       <button class="menu-btn" id="m-fight">Fight<small>Choose your deck, choose your opponent.</small></button>
+      <button class="menu-btn" id="m-gauntlet">The Gauntlet<small>${gauntletSub}</small></button>
       <button class="menu-btn" id="m-hotseat">Two Players<small>Pass-and-play on this device.</small></button>
       <button class="menu-btn" id="m-build">Deck Builder<small>Purity brings mastery. Mixing brings options. Choose.</small></button>
       <button class="menu-btn" id="m-record">Fight Record<small>Review past fights, turn by turn.</small></button>
-      <div style="max-width:520px;margin:26px auto;color:var(--dim);font-size:14px">
+      <button class="menu-btn" id="m-profile">Profile<small>${escapeAttr(getProfileName())}'s dojo. Save &amp; carry your decks and stats across devices.</small></button>
+      <div style="text-align:center;margin-top:6px">
+        <button class="back" id="m-settings">settings</button>
+        <button class="back" id="m-about">about</button>
+      </div>
+      <div style="max-width:520px;margin:22px auto;color:var(--dim);font-size:14px">
         <b style="color:var(--gold);font-weight:normal">The Way of it:</b>
         A deck that is three-quarters one art earns that art's <i>mastery passive</i> and its master techniques.
         A deck that mixes arts draws a bigger hand (4 + one per art) and covers every range,
@@ -1126,10 +1374,16 @@ function showMenu() {
       </div>
     </div>`);
   app.appendChild(s);
-  $("m-fight").onclick = () => showDeckSelect(false);
-  $("m-hotseat").onclick = () => showDeckSelect(true);
-  $("m-build").onclick = showBuilder;
-  $("m-record").onclick = showRecord;
+  const go = (fn) => { Sound.resume(); Sound.ui(); fn(); };
+  $("m-howto").onclick = () => go(showHowTo);
+  $("m-fight").onclick = () => go(() => showDeckSelect(false));
+  $("m-gauntlet").onclick = () => go(showGauntletDeckSelect);
+  $("m-hotseat").onclick = () => go(() => showDeckSelect(true));
+  $("m-build").onclick = () => go(showBuilder);
+  $("m-record").onclick = () => go(showRecord);
+  $("m-profile").onclick = () => go(showProfile);
+  $("m-settings").onclick = () => go(openSettings);
+  $("m-about").onclick = () => go(openAbout);
 }
 
 function deckOptions() {
@@ -1140,6 +1394,20 @@ function deckOptions() {
   return opts;
 }
 
+function deckPickButton(o, onPick) {
+  const valid = validateDeck(o.cards);
+  const st = deckStats(o.cards);
+  const b = document.createElement("button");
+  b.className = "fighter-card" + (valid ? "" : " disabled");
+  b.innerHTML = `<span class="fbody"><span class="fname">${o.name}</span><br>
+    <span class="fart" style="color:${st.topArt ? ARTS[st.topArt].color : "var(--dim)"}">
+    ${valid
+      ? (st.mastery ? "Mastery: " + ARTS[st.mastery].name : st.arts + " arts, no mastery") + " · hand " + st.handSize
+      : "needs fixing in the Deck Builder (" + o.cards.length + "/" + DECK_SIZE + " cards)"}</span></span>`;
+  if (valid) b.onclick = () => { Sound.ui(); onPick({ name: o.name, cards: o.cards.slice() }); };
+  return b;
+}
+
 function showDeckSelect(hotseat, forPlayer = 0, chosen = []) {
   app.innerHTML = "";
   const opts = deckOptions();
@@ -1148,18 +1416,11 @@ function showDeckSelect(hotseat, forPlayer = 0, chosen = []) {
     <div style="text-align:center"><button class="back" id="bk">back</button></div></div>`);
   app.appendChild(s);
   for (const o of opts) {
-    const st = deckStats(o.cards);
-    const b = document.createElement("button");
-    b.className = "fighter-card";
-    b.innerHTML = `<span class="fname">${o.name}</span><br>
-      <span class="fart" style="color:${st.topArt ? ARTS[st.topArt].color : "var(--dim)"}">
-      ${st.mastery ? "Mastery: " + ARTS[st.mastery].name : st.arts + " arts, no mastery"} · hand ${st.handSize}</span>`;
-    b.onclick = () => {
-      const pick = { name: o.name, cards: o.cards };
+    const b = deckPickButton(o, (pick) => {
       if (hotseat && forPlayer === 0) showDeckSelect(true, 1, [pick]);
       else if (hotseat) startHotseat(chosen[0], pick);
       else showOpponents(pick);
-    };
+    });
     $("dl").appendChild(b);
   }
   $("bk").onclick = showMenu;
@@ -1182,20 +1443,21 @@ function showOpponents(playerDeck) {
         <div class="quote">"${o.quote}"</div>
       </span>`;
     b.onclick = () => {
+      Sound.ui();
       const p0 = newFighter("You", playerDeck.cards, true, null);
       const p1 = newFighter(o.name, PREBUILT[o.deck].cards, false, o);
-      M = null;
+      RUN = null;
       startDuel(p0, p1);
-      M.hotseat = false;
     };
     $("ol").appendChild(b);
   }
-  $("bk").onclick = showMenu;
+  $("bk").onclick = () => showDeckSelect(false);
 }
 
 function startHotseat(d0, d1) {
   const p0 = newFighter("Player 1", d0.cards, true, null);
   const p1 = newFighter("Player 2", d1.cards, true, null);
+  RUN = null;
   startDuel(p0, p1);
   M.hotseat = true;
 }
@@ -1209,6 +1471,182 @@ function passScreen(name) {
     $("pass-ok").onclick = () => { o.remove(); resolve(); };
   });
 }
+
+/* ================================================================ pause / settings overlays */
+
+function openPause() {
+  Sound.ui();
+  const o = el(`<div class="overlay"><div class="obox">
+    <h2>Paused</h2>
+    <button class="menu-btn" style="text-align:center" id="pz-resume">Resume</button>
+    <button class="menu-btn" style="text-align:center" id="pz-set">Settings</button>
+    <button class="menu-btn" style="text-align:center" id="pz-log">Full fight log</button>
+    <button class="menu-btn" style="text-align:center" id="pz-quit">Quit to the dojo</button>
+  </div></div>`);
+  document.body.appendChild(o);
+  o.querySelector("#pz-resume").onclick = () => { Sound.ui(); o.remove(); };
+  o.querySelector("#pz-set").onclick = () => { openSettings(); };
+  o.querySelector("#pz-log").onclick = () => showFightLog(M.history, `${M.p[0].name} vs ${M.p[1].name}`);
+  o.querySelector("#pz-quit").onclick = () => {
+    if (!confirm("Quit this fight and return to the dojo? It won't be recorded.")) return;
+    o.remove();
+    quitDuel();
+  };
+}
+
+function quitDuel() {
+  if (!M) return;
+  M.over = true;
+  M.abandoned = true;
+  RUN = null;
+  if (humanResolve) { const r = humanResolve; humanResolve = null; r(); }
+  showMenu();
+}
+
+function openSettings() {
+  Sound.ui();
+  const o = el(`<div class="overlay"><div class="obox">
+    <h2>Settings</h2>
+    <div class="setrow"><span>Sound</span><button id="set-sound"></button></div>
+    <div class="setrow"><span>Reduce motion</span><button id="set-motion"></button></div>
+    <div class="setrow"><span>Difficulty</span><button id="set-diff"></button></div>
+    <p style="font-size:12.5px;max-width:320px;margin:8px auto 0">Difficulty changes how sharply opponents play their cards. It never gives them extra HP, stamina, or damage.</p>
+    <button class="menu-btn" style="text-align:center" id="set-close">Done</button>
+  </div></div>`);
+  document.body.appendChild(o);
+  const paint = () => {
+    o.querySelector("#set-sound").textContent = SETTINGS.sound ? "On" : "Off";
+    o.querySelector("#set-motion").textContent = SETTINGS.reduceMotion ? "On" : "Off";
+    o.querySelector("#set-diff").textContent = cap(SETTINGS.difficulty);
+  };
+  o.querySelector("#set-sound").onclick = () => { SETTINGS.sound = !SETTINGS.sound; saveSettings(); if (SETTINGS.sound) { Sound.resume(); Sound.ui(); } paint(); };
+  o.querySelector("#set-motion").onclick = () => { SETTINGS.reduceMotion = !SETTINGS.reduceMotion; saveSettings(); paint(); };
+  o.querySelector("#set-diff").onclick = () => {
+    const seq = ["easy", "normal", "hard"];
+    SETTINGS.difficulty = seq[(seq.indexOf(SETTINGS.difficulty) + 1) % seq.length];
+    saveSettings(); Sound.ui(); paint();
+    if (M && !M.over) M.difficulty = SETTINGS.difficulty;
+  };
+  o.querySelector("#set-close").onclick = () => { Sound.ui(); o.remove(); };
+  paint();
+}
+
+function openAbout() {
+  Sound.ui();
+  const o = el(`<div class="overlay"><div class="obox">
+    <h2>Masters of the Way</h2>
+    <p style="color:var(--gold);font-style:italic">v${VERSION}: a martial-arts card battler built from six real arts.</p>
+    <p>© 2026 Peter Brendan. All rights reserved.</p>
+    <p><b style="color:var(--ink);font-weight:normal">No data collected.</b> Your decks, fight record, and settings stay in this browser, or in a profile file you choose to export. No accounts, no analytics, no servers.</p>
+    <p>No third-party dependencies: all code, artwork, and sound are original or system-provided.</p>
+    <p style="font-size:13px">
+      <a href="https://github.com/peterdsouza247/masters-of-the-way/blob/main/LICENSE" target="_blank" rel="noopener" style="color:var(--gold)">License</a> ·
+      <a href="https://peterdsouza247.github.io/pocs/gdds/gdd_masters_of_the_way.html" target="_blank" rel="noopener" style="color:var(--gold)">Design document</a> ·
+      <a href="mailto:peterbrendanwrites@gmail.com" style="color:var(--gold)">Contact</a>
+    </p>
+    <button class="menu-btn" style="text-align:center" id="about-close">Close</button>
+  </div></div>`);
+  document.body.appendChild(o);
+  const c = o.querySelector("#about-close");
+  c.focus();
+  c.onclick = () => { Sound.ui(); o.remove(); };
+}
+
+/* ================================================================ the gauntlet */
+
+let RUN = null;
+const GAUNTLET_ORDER = ["reyes", "mirae", "kanda", "barsov", "somchai", "rosa", "mongrel"];
+const HEAL_BETWEEN = 12;
+
+function showGauntletDeckSelect() {
+  app.innerHTML = "";
+  const opts = deckOptions();
+  const s = el(`<div class="screen">
+    <h2>The Gauntlet</h2>
+    <div class="sub">Seven masters, in order, one run. You heal ${HEAL_BETWEEN} between fights. Lose once and it is over.</div>
+    <div id="dl"></div>
+    <div style="text-align:center"><button class="back" id="bk">back</button></div></div>`);
+  app.appendChild(s);
+  for (const o of opts) {
+    const b = deckPickButton(o, (pick) => startGauntlet(pick));
+    $("dl").appendChild(b);
+  }
+  $("bk").onclick = showMenu;
+}
+
+function startGauntlet(deck) {
+  RUN = { deck, deckName: deck.name, idx: 0, wins: 0, hp: 30, difficulty: SETTINGS.difficulty };
+  nextGauntletFight();
+}
+
+function nextGauntletFight() {
+  if (!RUN) return;
+  if (RUN.idx >= GAUNTLET_ORDER.length) { finishGauntlet(true); return; }
+  const o = OPP[GAUNTLET_ORDER[RUN.idx]];
+  const p0 = newFighter("You", RUN.deck.cards, true, null);
+  p0.hp = RUN.hp;
+  const p1 = newFighter(o.name, PREBUILT[o.deck].cards, false, o);
+  startDuel(p0, p1);
+  M.gauntlet = true;
+}
+
+function gauntletInterstitial(winner) {
+  RUN.wins += 1;
+  RUN.idx += 1;
+  RUN.hp = Math.min(30, Math.max(1, winner.hp) + HEAL_BETWEEN);
+  if (RUN.idx >= GAUNTLET_ORDER.length) { finishGauntlet(true); return; }
+  Sound.win();
+  const nextO = OPP[GAUNTLET_ORDER[RUN.idx]];
+  const o = el(`<div class="overlay"><div class="obox">
+    <h2>${winner.name} advances</h2>
+    <p>${RUN.wins} of ${GAUNTLET_ORDER.length} masters down. You recover to <b style="color:#7fae6a">${RUN.hp} HP</b>.</p>
+    ${ladderHTML()}
+    <p>Next: <b style="color:var(--gold)">${nextO.name}</b><br><span style="font-style:italic">"${nextO.quote}"</span></p>
+    <button class="menu-btn" style="text-align:center" id="g-next">Walk out</button>
+    <button class="back" id="g-retire">retire with the streak</button>
+  </div></div>`);
+  document.body.appendChild(o);
+  o.querySelector("#g-next").onclick = () => { Sound.ui(); o.remove(); nextGauntletFight(); };
+  o.querySelector("#g-retire").onclick = () => {
+    if (!confirm(`Retire now and keep your streak of ${RUN.wins}?`)) return;
+    o.remove(); finishGauntlet(false, true);
+  };
+}
+
+function ladderHTML() {
+  const rows = GAUNTLET_ORDER.map((k, i) => {
+    const o = OPP[k];
+    const cls = i < RUN.idx ? "done" : (i === RUN.idx ? "now" : "todo");
+    const mark = i < RUN.idx ? "x" : (i === RUN.idx ? ">" : ".");
+    return `<div class="lrow ${cls}"><span class="mark">${mark}</span><span>${o.name}</span></div>`;
+  }).join("");
+  return `<div class="ladder">${rows}</div>`;
+}
+
+function finishGauntlet(completed, retired) {
+  const wins = RUN.wins, deckName = RUN.deckName, diff = RUN.difficulty;
+  saveRun(RUN, completed);
+  const cleared = completed;
+  const o = el(`<div class="overlay"><div class="obox">
+    ${cleared ? '<div class="kotext" style="color:var(--gold)">CLEARED</div>' : ""}
+    <h2>${cleared ? "The Gauntlet falls" : (retired ? "Retired undefeated" : "The run ends")}</h2>
+    <p>${cleared
+      ? "All seven masters, one deck, one walk. You are the way."
+      : (retired
+        ? `You walked away at ${wins} of ${GAUNTLET_ORDER.length}, streak intact.`
+        : `You reached ${wins} of ${GAUNTLET_ORDER.length} before the run ended.`)}
+      <br><span style="font-style:italic">${deckName} · ${cap(diff)}</span></p>
+    <button class="menu-btn" style="text-align:center" id="g-again">Run it again</button>
+    <button class="menu-btn" style="text-align:center" id="g-menu">Back to the dojo</button>
+  </div></div>`);
+  document.body.appendChild(o);
+  if (cleared) Sound.win();
+  RUN = null;
+  o.querySelector("#g-again").onclick = () => { Sound.ui(); o.remove(); showGauntletDeckSelect(); };
+  o.querySelector("#g-menu").onclick = () => { Sound.ui(); o.remove(); showMenu(); };
+}
+
+/* ================================================================ persistence: fights */
 
 const FIGHTS_KEY = "motw-fights-v1";
 function loadFights() {
@@ -1224,13 +1662,69 @@ function saveFight(winner, loser) {
     method: M.method, turns: M.turnNo,
     playerWon: winner.human && !M.hotseat,
     hotseat: !!M.hotseat,
+    gauntlet: !!M.gauntlet,
     log: M.history,
   });
   try { localStorage.setItem(FIGHTS_KEY, JSON.stringify(fights.slice(0, 25))); } catch (e) {}
 }
 
+/* ================================================================ persistence: gauntlet runs */
+
+const RUNS_KEY = "motw-runs-v1";
+function loadRuns() {
+  try {
+    const r = JSON.parse(localStorage.getItem(RUNS_KEY));
+    if (r && typeof r === "object") return { best: r.best || 0, completions: r.completions || 0, runs: Array.isArray(r.runs) ? r.runs : [] };
+  } catch (e) {}
+  return { best: 0, completions: 0, runs: [] };
+}
+function saveRun(run, completed) {
+  const data = loadRuns();
+  data.best = Math.max(data.best, run.wins);
+  if (completed) data.completions = (data.completions || 0) + 1;
+  data.runs.unshift({ date: new Date().toISOString().slice(0, 10), deck: run.deckName, wins: run.wins, completed: !!completed, difficulty: run.difficulty });
+  data.runs = data.runs.slice(0, 20);
+  try { localStorage.setItem(RUNS_KEY, JSON.stringify(data)); } catch (e) {}
+}
+
 function showResult(winner, loser) {
+  if (M.abandoned) return;
+
+  // Tutorial gets its own wrap-up.
+  if (M.tutorial) {
+    clearCoach();
+    $("duel").classList.remove("tutorial");
+    markTutorialDone();
+    saveFight(winner, loser);
+    const won = winner.human;
+    const o = el(`<div class="overlay"><div class="obox">
+      <div class="kotext" style="font-size:34px;color:var(--gold)">${won ? "Lesson learned" : "Good roll"}</div>
+      <h2>Tutorial complete</h2>
+      <p>${won
+        ? "You read the range and closed the show. That's the whole game. Now take it to the roster for real."
+        : "Rosa got the better of that one. That's grappling. Survive the bad position, then reverse it. Run it back, or pick a fight on your own terms."}</p>
+      <button class="menu-btn" style="text-align:center" id="tut-review">Review the fight</button>
+      <button class="menu-btn" style="text-align:center" id="tut-menu">To the dojo</button>
+    </div></div>`);
+    document.body.appendChild(o);
+    announce("Tutorial complete.");
+    if (won) Sound.win(); else Sound.ko();
+    o.querySelector("#tut-review").focus();
+    o.querySelector("#tut-review").onclick = () => showFightLog(M.history, `${M.p[0].name} vs ${M.p[1].name}`);
+    o.querySelector("#tut-menu").onclick = () => { o.remove(); showMenu(); };
+    return;
+  }
+
   saveFight(winner, loser);
+  if (M.method === "Tap Out") Sound.tap(); else Sound.ko();
+
+  // Gauntlet runs get their own flow.
+  if (M.gauntlet && RUN) {
+    if (winner.human) { setTimeout(() => gauntletInterstitial(winner), 300); return; }
+    setTimeout(() => finishGauntlet(false), 300);
+    return;
+  }
+
   const o = el(`<div class="overlay"><div class="obox">
     <div class="kotext">${M.method}</div>
     <div style="width:74px;margin:0 auto 8px" class="pico">${portraitFor(winner.stats)}</div>
@@ -1247,6 +1741,9 @@ function showResult(winner, loser) {
     <button class="menu-btn" style="text-align:center" id="res-menu">Back to the dojo</button>
   </div></div>`);
   document.body.appendChild(o);
+  announce(`${winner.name} wins by ${M.method}, turn ${M.turnNo}.`);
+  if (o.querySelector("#res-review")) o.querySelector("#res-review").focus();
+  if (winner.human && !M.hotseat) Sound.win();
   $("res-review").onclick = () => showFightLog(M.history, `${M.p[0].name} vs ${M.p[1].name}`);
   $("res-menu").onclick = () => { o.remove(); showMenu(); };
 }
@@ -1274,7 +1771,7 @@ function showRecord() {
       ? `<span style="color:var(--gold)">${f.winner} won</span>`
       : (f.playerWon ? '<span class="rwin">Victory</span>' : '<span class="rloss">Defeat</span>');
     b.innerHTML = `<span class="fbody">
-      <span class="fname">${f.title}</span> · ${verdict}
+      <span class="fname">${f.title}</span> · ${verdict}${f.gauntlet ? ' <span style="color:var(--gold)">· Gauntlet</span>' : ""}
       <div class="rsub">${f.method} · turn ${f.turns} · ${f.date} · tap to review</div></span>`;
     b.onclick = () => showFightLog(f.log, f.title);
     rl.appendChild(b);
@@ -1420,7 +1917,7 @@ function showBuilder() {
            <span class="pname">${c.name}${c.master ? " ✦" : ""} <span class="ptext">· ${c.ranges.map(cap).join("/")}${c.needTop ? " (top)" : ""} · ${c.text}</span>
            ${masterLocked ? '<span class="locknote">requires 75% ' + ARTS[c.art].name + "</span>" : ""}</span>`;
         const minus = document.createElement("button");
-        minus.className = "cnt-btn"; minus.textContent = "−";
+        minus.className = "cnt-btn"; minus.textContent = "-";
         minus.disabled = n === 0;
         minus.onclick = () => { deck.splice(deck.indexOf(c.id), 1); refresh(); };
         const num = document.createElement("span");
@@ -1453,9 +1950,579 @@ function showBuilder() {
   refresh();
 }
 
+/* ================================================================ accessibility + gamepad */
+
+function announce(text) {
+  const n = $("a11y-live");
+  if (!n) return;
+  n.textContent = "";
+  setTimeout(() => { n.textContent = text; }, 40);
+}
+
+function inHumanTurn() {
+  return $("duel").style.display === "block" && M && !M.over &&
+    M.p[M.active] && M.p[M.active].human && $("handwrap").style.visibility !== "hidden";
+}
+
+function currentFocusables() {
+  const ovs = document.querySelectorAll(".overlay");
+  if (ovs.length) {
+    const ov = ovs[ovs.length - 1];
+    return Array.from(ov.querySelectorAll('button, select, input, [tabindex]:not([tabindex="-1"])'));
+  }
+  if (inHumanTurn()) {
+    const cards = Array.from($("hand").querySelectorAll("button.card.playable"));
+    if (!$("endturn").disabled) cards.push($("endturn"));
+    cards.push($("duelmenu"));
+    return cards;
+  }
+  return Array.from(app.querySelectorAll('button, select, input, [tabindex]:not([tabindex="-1"])'));
+}
+
+function moveFocus(dir) {
+  const list = currentFocusables();
+  if (!list.length) return;
+  let idx = list.indexOf(document.activeElement);
+  idx = idx < 0 ? (dir > 0 ? 0 : list.length - 1) : (idx + dir + list.length) % list.length;
+  list.forEach((x) => x.classList.remove("kbfocus"));
+  list[idx].focus();
+  list[idx].classList.add("kbfocus");
+}
+
+function isTyping() {
+  const a = document.activeElement;
+  return a && (a.tagName === "INPUT" || a.tagName === "TEXTAREA" || a.tagName === "SELECT");
+}
+
+function backOut() {
+  const ov = document.querySelector(".overlay");
+  if (ov) {
+    const c = ov.querySelector("#pz-resume, #set-close, #lv-close, .back, #g-menu");
+    if (c) c.click();
+    return true;
+  }
+  if ($("duel").style.display === "block" && M && !M.over) { openPause(); return true; }
+  return false;
+}
+
+document.addEventListener("keydown", (e) => {
+  if (isTyping()) return;
+  // number keys 1-9 play the matching hand card during your turn
+  if (inHumanTurn() && /^[1-9]$/.test(e.key)) {
+    const cards = Array.from($("hand").children);
+    const c = cards[parseInt(e.key, 10) - 1];
+    if (c && c.classList.contains("playable")) { e.preventDefault(); c.click(); }
+    return;
+  }
+  if (e.key === "Escape") { if (backOut()) e.preventDefault(); return; }
+  if (e.key === "Enter" && inHumanTurn() && document.activeElement === document.body) {
+    if (!$("endturn").disabled) { e.preventDefault(); $("endturn").click(); }
+    return;
+  }
+  if (e.key === "ArrowUp" || e.key === "ArrowLeft") { e.preventDefault(); moveFocus(-1); }
+  else if (e.key === "ArrowDown" || e.key === "ArrowRight") { e.preventDefault(); moveFocus(1); }
+});
+document.addEventListener("mousedown", () => {
+  document.querySelectorAll(".kbfocus").forEach((x) => x.classList.remove("kbfocus"));
+});
+
+// Gamepad: roving focus + activation, so the whole game is playable on a controller.
+const Pad = (function () {
+  let running = false;
+  const prev = {};
+  const down = (gp, i) => gp.buttons[i] && gp.buttons[i].pressed;
+  function edge(id, i, gp) { const k = id + ":b" + i; const now = down(gp, i); const was = prev[k]; prev[k] = now; return now && !was; }
+  function stickEdge(id, ax, val, dir) { const k = id + ":s" + ax + ":" + dir; const active = dir > 0 ? val > 0.6 : val < -0.6; const was = prev[k]; prev[k] = active; return active && !was; }
+  function loop() {
+    const pads = navigator.getGamepads ? navigator.getGamepads() : [];
+    for (const gp of pads) {
+      if (!gp) continue;
+      const id = gp.index, ax0 = gp.axes[0] || 0, ax1 = gp.axes[1] || 0;
+      if (edge(id, 12, gp) || edge(id, 14, gp) || stickEdge(id, 1, ax1, -1) || stickEdge(id, 0, ax0, -1)) moveFocus(-1);
+      if (edge(id, 13, gp) || edge(id, 15, gp) || stickEdge(id, 1, ax1, 1) || stickEdge(id, 0, ax0, 1)) moveFocus(1);
+      if (edge(id, 0, gp)) { const el = document.activeElement; if (el && el.click && el !== document.body) el.click(); }
+      if (edge(id, 1, gp)) backOut();
+      if (edge(id, 9, gp)) { if ($("duel").style.display === "block" && M && !M.over && !document.querySelector(".overlay")) openPause(); }
+    }
+    requestAnimationFrame(loop);
+  }
+  return { start() { if (!running) { running = true; loop(); } } };
+})();
+
+/* ================================================================ balance simulator (headless, ?sim=1) */
+
+// Persona per dominant art, mirroring the roster's natural ranges/aggression.
+const ART_PERSONA = {
+  boxing:    { aggr: .75, prefRange: "close" },
+  karate:    { aggr: .60, prefRange: "far" },
+  taekwondo: { aggr: .65, prefRange: "far" },
+  muaythai:  { aggr: .85, prefRange: "close" },
+  judo:      { aggr: .70, prefRange: "close" },
+  bjj:       { aggr: .60, prefRange: "ground" },
+  neutral:   { aggr: .70, prefRange: "close" },
+};
+function personaForDeck(cards) {
+  const st = deckStats(cards);
+  const p = ART_PERSONA[st.topArt || "neutral"] || ART_PERSONA.neutral;
+  return { aggr: p.aggr, prefRange: p.prefRange };
+}
+
+// Two extra mixed test decks (no mastery), each a legal 20-card build.
+const MIX_STRIKER = [
+  "jab","jab","cross","cross","hook","slip","bobweave","footwork",
+  "apchagi","apchagi","dollyo","dwichagi","spinhook","switchstance","distance",
+  "advance","retreat","highguard","highguard","breathe",
+];
+const MIX_GRAPPLER = [
+  "gripfight","ogoshi","ogoshi","seoi","ashiwaza","uchimata","ukemi",
+  "shoot","shoot","pullguard","sweep","passguard","gnp","armbar","standup",
+  "advance","retreat","highguard","breathe","breathe",
+];
+
+function simDecks() {
+  return [
+    { name: "Boxing (pure)",        cards: PREBUILT.boxing.cards,    tag: "pure" },
+    { name: "Karate (pure)",        cards: PREBUILT.karate.cards,    tag: "pure" },
+    { name: "Taekwondo (pure)",     cards: PREBUILT.taekwondo.cards, tag: "pure" },
+    { name: "Muay Thai (pure)",     cards: PREBUILT.muaythai.cards,  tag: "pure" },
+    { name: "Judo (pure)",          cards: PREBUILT.judo.cards,      tag: "pure" },
+    { name: "BJJ (pure)",           cards: PREBUILT.bjj.cards,       tag: "pure" },
+    { name: "MMA (3-art mix)",      cards: PREBUILT.mma.cards,       tag: "mixed" },
+    { name: "Striker mix (2-art)",  cards: MIX_STRIKER,              tag: "mixed" },
+    { name: "Grappler mix (2-art)", cards: MIX_GRAPPLER,             tag: "mixed" },
+  ].filter((d) => validateDeck(d.cards));
+}
+
+let SIM_RANGE = null;
+function simAiTurn(f, foe, diff) {
+  let safety = 40;
+  while (!M.over && safety-- > 0) {
+    const pick = aiSelect(aiRankPlays(f, foe), f, diff);
+    if (!pick) break;
+    playCard(f, pick.idx);
+  }
+}
+function simMatch(cards0, cards1, diff) {
+  HEADLESS = true;
+  try {
+    const p0 = newFighter("A", cards0, false, personaForDeck(cards0));
+    const p1 = newFighter("B", cards1, false, personaForDeck(cards1));
+    M = { p: [p0, p1], range: "far", top: null, active: 1, over: false, turnNo: 0, method: "K.O.", history: [], difficulty: diff, hotseat: false, gauntlet: false, abandoned: false };
+    while (!M.over && M.turnNo < 250) {
+      M.active = 1 - M.active;
+      M.turnNo += 1;
+      const f = M.p[M.active], foe = M.p[1 - M.active];
+      startOfTurn(f);
+      if (SIM_RANGE) SIM_RANGE[M.range] = (SIM_RANGE[M.range] || 0) + 1;
+      if (M.over) break;
+      simAiTurn(f, foe, diff);
+      if (M.over) break;
+      M.p[M.active].st.clinch = 0;
+    }
+    const timeout = p0.hp > 0 && p1.hp > 0;
+    let winner;
+    if (p0.hp <= 0 && p1.hp <= 0) winner = -1;
+    else if (p0.hp <= 0) winner = 1;
+    else if (p1.hp <= 0) winner = 0;
+    else winner = p0.hp === p1.hp ? -1 : (p0.hp > p1.hp ? 0 : 1);
+    return { winner, method: M.method, turns: M.turnNo, timeout };
+  } finally {
+    HEADLESS = false;
+  }
+}
+
+const avg = (a) => (a.length ? a.reduce((s, x) => s + x, 0) / a.length : 0);
+const pct = (x) => (x * 100).toFixed(1) + "%";
+
+async function runMatrix(N, diff, statusEl, outEl) {
+  const decks = simDecks();
+  const n = decks.length;
+  const grid = decks.map(() => decks.map(() => null));
+  const wins = decks.map(() => 0), games = decks.map(() => 0);
+  let tap = 0, ko = 0, timeout = 0, turns = 0, total = 0, pmGames = 0, pmPureWins = 0;
+  SIM_RANGE = { far: 0, close: 0, ground: 0 };
+  outEl.innerHTML = "";
+  for (let i = 0; i < n; i++) {
+    for (let j = 0; j < n; j++) {
+      if (i === j) { grid[i][j] = null; continue; }
+      let iw = 0;
+      for (let g = 0; g < N; g++) {
+        const swap = g % 2 === 1;   // alternate first mover to cancel initiative
+        const r = swap ? simMatch(decks[j].cards, decks[i].cards, diff)
+                       : simMatch(decks[i].cards, decks[j].cards, diff);
+        let winnerDeck;
+        if (r.winner === -1) winnerDeck = -1;
+        else if (!swap) winnerDeck = r.winner === 0 ? i : j;
+        else winnerDeck = r.winner === 0 ? j : i;
+        if (winnerDeck === i) iw++;
+        if (r.timeout) timeout++; else if (r.method === "Tap Out") tap++; else ko++;
+        turns += r.turns; total++;
+        if (decks[i].tag !== decks[j].tag) {
+          pmGames++;
+          const pureIdx = decks[i].tag === "pure" ? i : j;
+          if (winnerDeck === pureIdx) pmPureWins++;
+        }
+      }
+      wins[i] += iw; games[i] += N; grid[i][j] = iw / N;
+      statusEl.textContent = `Simulating ${decks[i].name} vs ${decks[j].name} ...`;
+      await sleep(0);
+    }
+  }
+  statusEl.textContent = `Done. ${total.toLocaleString()} games at ${cap(diff)}.`;
+
+  const wr = decks.map((d, i) => ({ name: d.name, tag: d.tag, wr: games[i] ? wins[i] / games[i] : 0 }));
+  const pureWR = avg(wr.filter((x) => x.tag === "pure").map((x) => x.wr));
+  const mixWR = avg(wr.filter((x) => x.tag === "mixed").map((x) => x.wr));
+  const pmWR = pmGames ? pmPureWins / pmGames : 0;
+  const rt = SIM_RANGE.far + SIM_RANGE.close + SIM_RANGE.ground || 1;
+  const off = (x) => Math.abs(x - 0.5) > 0.05;
+
+  // matchup grid
+  let gt = `<div class="simcard"><b>Matchup grid</b>: row's win rate vs column (green 45% or less, red 55% or more).<table class="simtable"><tr><th>vs</th>${decks.map((d) => `<th>${d.name.split(" ")[0]}</th>`).join("")}</tr>`;
+  for (let i = 0; i < n; i++) {
+    gt += `<tr><th>${decks[i].name}</th>`;
+    for (let j = 0; j < n; j++) {
+      if (i === j) { gt += `<td>-</td>`; continue; }
+      const v = grid[i][j];
+      const cls = v >= 0.55 ? "hot" : (v <= 0.45 ? "cold" : "");
+      gt += `<td class="${cls}">${Math.round(v * 100)}</td>`;
+    }
+    gt += `</tr>`;
+  }
+  gt += `</table></div>`;
+
+  // per-deck overall win rate
+  let wt = `<div class="simcard"><b>Overall win rate</b> (target 45-55%). Flags marked.<table class="simtable"><tr><th>Deck</th><th>Type</th><th>Win rate</th></tr>`;
+  wr.slice().sort((a, b) => b.wr - a.wr).forEach((x) => {
+    wt += `<tr><td>${x.name}</td><td>${x.tag}</td><td class="${x.wr >= 0.55 ? "hot" : (x.wr <= 0.45 ? "cold" : "")}">${pct(x.wr)}${off(x.wr) ? " ⚑" : ""}</td></tr>`;
+  });
+  wt += `</table></div>`;
+
+  // summary
+  const st = `<div class="simcard">
+    <b>Purity vs cross-training</b> (the core balance goal):<br>
+    Pure decks average <b>${pct(pureWR)}</b> · Mixed decks average <b>${pct(mixWR)}</b> ·
+    Pure-vs-mixed head-to-head: pure wins <b class="${Math.abs(pmWR - 0.5) > 0.05 ? "flag" : "good"}">${pct(pmWR)}</b>
+    ${Math.abs(pmWR - 0.5) <= 0.05 ? ", within the 5-point target" : ", outside the 5-point target"}.
+    <hr style="border-color:var(--border)">
+    <b>Finish method</b>: KO ${pct(ko / total)} · Tap Out ${pct(tap / total)} · Decision/timeout ${pct(timeout / total)}<br>
+    <b>Average duel length</b>: ${(turns / total).toFixed(1)} turns<br>
+    <b>Range-time share</b>: Far ${pct(SIM_RANGE.far / rt)} · Close ${pct(SIM_RANGE.close / rt)} · Ground ${pct(SIM_RANGE.ground / rt)}
+  </div>`;
+
+  outEl.innerHTML = st + wt + gt;
+}
+
+function showSimPanel() {
+  $("duel").style.display = "none";
+  app.style.display = "block";
+  app.innerHTML = "";
+  const s = el(`<div class="screen">
+    <h2>Balance Simulator</h2>
+    <div class="sub">Headless AI-vs-AI. Development tool, reachable only via <b>?sim=1</b>, never shown to players.</div>
+    <div style="text-align:center;margin-bottom:10px">
+      Games / matchup:
+      <select id="sim-n" style="padding:7px;background:var(--panel);border:1px solid var(--border);border-radius:6px;color:var(--ink);font:inherit"><option>100</option><option selected>300</option><option>800</option></select>
+      &nbsp; Difficulty:
+      <select id="sim-diff" style="padding:7px;background:var(--panel);border:1px solid var(--border);border-radius:6px;color:var(--ink);font:inherit"><option>easy</option><option selected>normal</option><option>hard</option></select>
+      &nbsp; <button class="cnt-btn" style="width:auto;padding:4px 16px" id="sim-run">Run</button>
+      <button class="back" id="sim-back">back to game</button>
+    </div>
+    <div id="sim-status" style="text-align:center;color:var(--gold);min-height:20px;font-style:italic"></div>
+    <div id="sim-out"></div>
+  </div>`);
+  app.appendChild(s);
+  $("sim-back").onclick = () => { const u = location.pathname; history.replaceState(null, "", u); showMenu(); };
+  $("sim-run").onclick = async () => {
+    $("sim-run").disabled = true;
+    try { await runMatrix(parseInt($("sim-n").value, 10), $("sim-diff").value, $("sim-status"), $("sim-out")); }
+    finally { $("sim-run").disabled = false; }
+  };
+}
+
+/* ================================================================ onboarding */
+
+const ONBOARD_KEY = "motw-onboard-v1";
+function loadOnboard() {
+  try { const o = JSON.parse(localStorage.getItem(ONBOARD_KEY)); if (o && typeof o === "object") return o; } catch (e) {}
+  return { tutorialDone: false };
+}
+function markTutorialDone() {
+  const o = loadOnboard(); o.tutorialDone = true;
+  try { localStorage.setItem(ONBOARD_KEY, JSON.stringify(o)); } catch (e) {}
+}
+
+function coach(text) {
+  const c = $("coach");
+  if (!c) return;
+  c.innerHTML = `<span class="ctext">${text}</span> <button class="back" id="coach-skip">skip tips</button>`;
+  c.classList.add("show");
+  announce(text);
+  const s = $("coach-skip");
+  if (s) s.onclick = () => { if (M) M.tutorial = false; clearCoach(); };
+}
+function clearCoach() {
+  const c = $("coach");
+  if (c) { c.classList.remove("show"); c.innerHTML = ""; }
+}
+
+// Contextual coaching driven by live game state. Each tip fires at most once.
+function tutorialCheck() {
+  const t = M.taught || (M.taught = {});
+  const me = M.p[0], foe = M.p[1];
+  const once = (id) => { if (t[id]) return false; t[id] = true; return true; };
+  if (M.range === "ground" && once("ground")) return coach("The fight is on the ground. That's BJJ's home, and Rosa's. Whoever holds top position controls it.");
+  if (M.range === "ground" && M.top === 1 && once("bottom")) return coach("Rosa has top position: the danger zone. Escape with Technical Stand-up to get back to your feet, or a Sweep to reverse the position.");
+  if (M.range === "ground" && M.top === 0 && once("top")) return coach("You have top position. Play Pass Guard to gain Control, then a submission like Juji-gatame can end it outright.");
+  if (foe.hp <= 8 && foe.hp > 0 && once("tap")) return coach("Rosa is low enough to tap. A submission that leaves her at or below its threshold finishes instantly. You don't have to reach 0 HP.");
+  if (me.hp <= 8 && me.hp > 0 && once("lowhp")) return coach("You're hurt. Guard cards absorb the next hits, Create Space resets the range, and Breathe buys back stamina.");
+  if (M.active === 0 && once("turn1")) return coach("Your turn. Greyed-out cards can't be played at the current range. Change range to enable them. Spend up to 3 stamina, then End Turn.");
+}
+
+function startTutorial() {
+  RUN = null;
+  const rosa = OPP["rosa"];
+  const p0 = newFighter("You", PREBUILT.mma.cards, true, null);
+  const p1 = newFighter(rosa.name, PREBUILT[rosa.deck].cards, false, rosa);
+  startDuel(p0, p1);
+  M.tutorial = true;
+  M.difficulty = "easy";
+  M.taught = {};
+  $("duel").classList.add("tutorial");
+  coach("Welcome. Goal: drop Rosa to 0 HP, or force a tap with a submission. You have 3 stamina a turn, and a mixed deck that covers every range.");
+}
+
+function showHowTo() {
+  clearCoach();
+  $("duel").style.display = "none";
+  $("duel").classList.remove("tutorial");
+  app.style.display = "block";
+  app.innerHTML = "";
+  const glossary = [
+    ["Staggered", "-1 stamina on their next turn."],
+    ["Bleeding", "Loses HP at the start of each of their turns (Muay Thai)."],
+    ["Clinched", "Can't change range next turn. Trapped in the pocket (Muay Thai)."],
+    ["Grip", "Your next throw deals +2 (Judo)."],
+    ["Control", "Top-position dominance: your submissions +3 and ground strikes +1 (Judo/BJJ)."],
+    ["Counter", "The next strike against you costs the attacker HP (Boxing)."],
+  ];
+  const s = el(`<div class="screen">
+    <h2>How to Play</h2>
+    <div class="howto">
+      <p><b>The goal.</b> Two fighters, 30 HP each. Win by knockout (drop them to 0), or by submission: a sub that leaves them at or below its tap threshold ends the fight on the spot.</p>
+      <p><b>A turn.</b> You draw up to your hand size, then spend up to <b>3 stamina</b> (◈) playing cards (strikes, guards, movement, grapples, submissions), then End Turn. Your Guard resets at the start of each of your own turns, so spend it or lose it.</p>
+      <p><b>Range is the battlefield.</b> Every card is gated to <b>Far</b> (kicking), <b>Close</b> (the pocket), or <b>Ground</b>. Greyed cards can't be played at the current range. Fights are won by dragging the duel into <i>your</i> range: Taekwondo wants Far, Boxing wants Close, Jiu-Jitsu wants the floor. On the ground, <b>top position</b> is everything, and the fighter on top controls the exchange.</p>
+      <p><b>One way, or every way.</b> A deck that's 75% or more of one art earns that art's <b>mastery passive</b> and its master techniques, and combos same-art cards for bonus damage. A mixed deck masters nothing but draws a bigger hand (4 + one per art) and answers every range. Both are viable, and that's the whole argument.</p>
+      <div class="glossary"><b>Status effects</b>${glossary.map((g) => `<div><span class="gk">${g[0]}</span>: ${g[1]}</div>`).join("")}</div>
+      <p style="text-align:center;font-style:italic;color:var(--dim)">In a duel, hover or long-press any status chip to see what it does.</p>
+    </div>
+    <button class="menu-btn" style="text-align:center;max-width:380px;margin:16px auto" id="ht-tut">Start the tutorial fight (vs Rosa)</button>
+    <div style="text-align:center"><button class="back" id="ht-back">back</button></div>
+  </div>`);
+  app.appendChild(s);
+  $("ht-tut").onclick = () => { Sound.resume(); Sound.ui(); startTutorial(); };
+  $("ht-back").onclick = showMenu;
+}
+
+/* ================================================================ profiles (portable save file) */
+
+const PROFILE_NAME_KEY = "motw-profile-v1";
+const PROFILE_MAP = { settings: SET_KEY, decks: DECKS_KEY, fights: FIGHTS_KEY, runs: RUNS_KEY, onboard: ONBOARD_KEY };
+const escapeAttr = (s) => String(s).replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
+function getProfileName() {
+  try { const p = JSON.parse(localStorage.getItem(PROFILE_NAME_KEY)); if (p && p.name) return p.name; } catch (e) {}
+  return "Player";
+}
+function setProfileName(name) {
+  try { localStorage.setItem(PROFILE_NAME_KEY, JSON.stringify({ name: String(name).slice(0, 24) })); } catch (e) {}
+}
+function readKey(k) { try { return JSON.parse(localStorage.getItem(k)); } catch (e) { return null; } }
+function writeKey(k, v) { try { if (v == null) return; localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
+
+function buildProfile() {
+  const data = {};
+  for (const [k, key] of Object.entries(PROFILE_MAP)) data[k] = readKey(key);
+  return { app: "masters-of-the-way", type: "profile", version: 1, exportedAt: new Date().toISOString(), name: getProfileName(), data };
+}
+
+const b64enc = (s) => btoa(unescape(encodeURIComponent(s)));
+const b64dec = (b) => decodeURIComponent(escape(atob(b)));
+
+function downloadProfile() {
+  const obj = buildProfile();
+  const json = JSON.stringify(obj, null, 2);
+  const safe = (obj.name || "player").replace(/[^a-z0-9\-_]+/gi, "_").toLowerCase() || "player";
+  const blob = new Blob([json], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = `motw-profile-${safe}.json`;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 4000);
+}
+
+function parseProfile(text) {
+  let obj;
+  try { obj = JSON.parse(text); }
+  catch (e) { try { obj = JSON.parse(b64dec(text.trim())); } catch (e2) { return null; } }
+  if (!obj || typeof obj !== "object") return null;
+  if (obj.app && obj.app !== "masters-of-the-way") return null;
+  if (!obj.data || typeof obj.data !== "object") return null;
+  return obj;
+}
+
+function applyProfile(obj, mode) {
+  const d = obj.data || {};
+  if (mode === "replace") {
+    for (const [k, key] of Object.entries(PROFILE_MAP)) if (k in d) writeKey(key, d[k]);
+    if (obj.name) setProfileName(obj.name);
+    applySettings();
+    return;
+  }
+  // merge: bring decks/record/runs, keep this device's preferences
+  if (Array.isArray(d.decks)) {
+    const byName = {};
+    for (const dk of (readKey(DECKS_KEY) || [])) if (dk && dk.name) byName[dk.name.toLowerCase()] = dk;
+    for (const dk of d.decks) if (dk && dk.name) byName[dk.name.toLowerCase()] = dk;   // incoming wins ties
+    writeKey(DECKS_KEY, Object.values(byName));
+  }
+  if (Array.isArray(d.fights)) {
+    const all = (readKey(FIGHTS_KEY) || []).concat(d.fights);
+    const seen = new Set(), out = [];
+    for (const f of all) {
+      const sig = [f.date, f.title, f.method, f.turns, f.winner].join("|");
+      if (seen.has(sig)) continue;
+      seen.add(sig); out.push(f);
+    }
+    out.sort((a, b) => String(b.date || "").localeCompare(String(a.date || "")));
+    writeKey(FIGHTS_KEY, out.slice(0, 25));
+  }
+  if (d.runs && typeof d.runs === "object") {
+    const ex = readKey(RUNS_KEY) || { best: 0, completions: 0, runs: [] };
+    writeKey(RUNS_KEY, {
+      best: Math.max(ex.best || 0, d.runs.best || 0),
+      completions: Math.max(ex.completions || 0, d.runs.completions || 0),
+      runs: (Array.isArray(ex.runs) ? ex.runs : []).concat(Array.isArray(d.runs.runs) ? d.runs.runs : []).slice(0, 20),
+    });
+  }
+  if (d.onboard && (d.onboard.tutorialDone || loadOnboard().tutorialDone)) markTutorialDone();
+}
+
+function careerStats() {
+  const fights = loadFights(), runs = loadRuns();
+  let w = 0, l = 0, ko = 0, sub = 0;
+  for (const f of fights) {
+    if (f.hotseat) continue;
+    if (f.playerWon) { w++; if (f.method === "Tap Out") sub++; else ko++; }
+    else l++;
+  }
+  return { w, l, ko, sub, total: w + l, best: runs.best || 0, cleared: runs.completions || 0 };
+}
+
+function showProfile() {
+  clearCoach();
+  $("duel").style.display = "none";
+  app.style.display = "block";
+  app.innerHTML = "";
+  const st = careerStats();
+  const s = el(`<div class="screen">
+    <h2>Profile</h2>
+    <div class="sub">Your decks, fight record, and stats live in this browser. Save them to a file (or a code) to carry across devices and browsers, to survive a cleared cache, or to bring your decks to a friend's screen for pass-and-play.</div>
+    <div style="text-align:center;margin-bottom:6px">
+      <input id="prof-name" maxlength="24" value="${escapeAttr(getProfileName())}"
+        style="width:100%;max-width:300px;padding:11px 14px;background:var(--panel);border:1px solid var(--border);border-radius:8px;color:var(--ink);font:inherit;text-align:center" aria-label="Fighter name">
+      <div class="locknote">your fighter name, saved automatically</div>
+    </div>
+    <div class="simcard" style="text-align:center">
+      <b>Career</b><br>
+      Record vs AI <b>${st.w}-${st.l}</b>${st.total ? " (" + Math.round(st.w / Math.max(1, st.total) * 100) + "%)" : ""} ·
+      Finishes <b>${st.ko}</b> KO / <b>${st.sub}</b> submission<br>
+      Gauntlet best <b>${st.best}/7</b>${st.cleared ? " · cleared " + st.cleared + "×" : ""}
+    </div>
+    <div class="art-head" style="color:var(--gold);max-width:520px;margin:18px auto 8px">Save (export)</div>
+    <div style="text-align:center">
+      <button class="cnt-btn" style="width:auto;padding:6px 18px" id="prof-download">Download .json</button>
+      <button class="cnt-btn" style="width:auto;padding:6px 18px" id="prof-copy">Copy code</button>
+    </div>
+    <div class="art-head" style="color:var(--gold);max-width:520px;margin:18px auto 8px">Load (import)</div>
+    <div style="text-align:center;margin-bottom:8px;font-size:14px">
+      <label><input type="radio" name="prof-mode" value="merge" checked> Merge into this device</label>
+      &nbsp;&nbsp; <label><input type="radio" name="prof-mode" value="replace"> Replace everything</label>
+    </div>
+    <div style="text-align:center">
+      <button class="cnt-btn" style="width:auto;padding:6px 18px" id="prof-file">Load from file...</button>
+      <input type="file" id="prof-fileinput" accept="application/json,.json" style="display:none">
+    </div>
+    <div style="text-align:center;margin-top:10px">
+      <textarea id="prof-code" placeholder="...or paste a profile code here" rows="3"
+        style="width:100%;max-width:340px;padding:10px;background:var(--panel);border:1px solid var(--border);border-radius:8px;color:var(--ink);font:inherit"></textarea><br>
+      <button class="cnt-btn" style="width:auto;padding:6px 18px;margin-top:6px" id="prof-loadcode">Load code</button>
+    </div>
+    <div id="prof-msg" style="text-align:center;color:var(--gold);min-height:22px;margin-top:12px"></div>
+    <div style="text-align:center"><button class="back" id="prof-back">back</button></div>
+  </div>`);
+  app.appendChild(s);
+  const msg = (t, bad) => { const m = $("prof-msg"); m.textContent = t; m.style.color = bad ? "var(--red)" : "var(--gold)"; announce(t); };
+  const mode = () => (document.querySelector('input[name="prof-mode"]:checked') || {}).value || "merge";
+  $("prof-name").oninput = () => { setProfileName($("prof-name").value.trim() || "Player"); };
+  $("prof-download").onclick = () => { Sound.ui(); downloadProfile(); msg("Profile downloaded. Keep the .json safe."); };
+  $("prof-copy").onclick = async () => {
+    Sound.ui();
+    const code = b64enc(JSON.stringify(buildProfile()));
+    try { await navigator.clipboard.writeText(code); msg("Code copied to clipboard."); }
+    catch (e) { $("prof-code").value = code; msg("Clipboard blocked. The code is in the box below; copy it manually."); }
+  };
+  const doImport = (text) => {
+    const obj = parseProfile(text);
+    if (!obj) { msg("That doesn't look like a Masters of the Way profile.", true); return; }
+    const m = mode();
+    if (m === "replace" && !confirm("Replace ALL decks, records, and settings on this device with the imported profile? This can't be undone.")) return;
+    applyProfile(obj, m);
+    Sound.win();
+    msg(`Loaded ${obj.name ? '"' + obj.name + '"' : "profile"} (${m === "replace" ? "replaced" : "merged"}).`);
+    setTimeout(showProfile, 900);
+  };
+  $("prof-file").onclick = () => $("prof-fileinput").click();
+  $("prof-fileinput").onchange = (e) => {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+    const r = new FileReader();
+    r.onload = () => doImport(String(r.result || ""));
+    r.onerror = () => msg("Couldn't read that file.", true);
+    r.readAsText(file);
+  };
+  $("prof-loadcode").onclick = () => { const t = $("prof-code").value.trim(); if (!t) { msg("Paste a code first.", true); return; } doImport(t); };
+  $("prof-back").onclick = showMenu;
+}
+
 /* ================================================================ boot */
 
-showMenu();
+(function installPWA() {
+  const icon = "data:image/svg+xml," + encodeURIComponent(
+    `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'>` +
+    `<rect width='100' height='100' rx='16' fill='#100e0c'/>` +
+    `<circle cx='50' cy='50' r='34' fill='none' stroke='#d9a441' stroke-width='4'/>` +
+    `<path d='M50 26 V74 M32 44 H68' stroke='#d9a441' stroke-width='4' fill='none' stroke-linecap='round'/></svg>`);
+  const fav = document.createElement("link"); fav.rel = "icon"; fav.href = icon; document.head.appendChild(fav);
+  const apple = document.createElement("link"); apple.rel = "apple-touch-icon"; apple.href = icon; document.head.appendChild(apple);
+  try {
+    const manifest = {
+      name: "Masters of the Way", short_name: "Masters",
+      description: "A martial-arts card battler built from six real arts.",
+      display: "standalone", orientation: "portrait",
+      background_color: "#100e0c", theme_color: "#100e0c", start_url: ".",
+      icons: [{ src: icon, sizes: "any", type: "image/svg+xml", purpose: "any" }],
+    };
+    const blob = new Blob([JSON.stringify(manifest)], { type: "application/manifest+json" });
+    const m = document.createElement("link"); m.rel = "manifest"; m.href = URL.createObjectURL(blob);
+    document.head.appendChild(m);
+  } catch (e) {}
+})();
+
+applySettings();
+try { Pad.start(); } catch (e) {}
+if (/[?&]sim=1(&|$)/.test(location.search)) showSimPanel();
+else showMenu();
 </script>
 </body>
 </html>

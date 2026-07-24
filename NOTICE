@@ -1,0 +1,14 @@
+Masters of the Way
+Copyright (c) 2026 Peter Brendan. All rights reserved.
+
+No third-party dependencies: all code, artwork, and sound are original or
+system-provided. The game ships as a single self-contained HTML file with no
+external libraries, fonts, images, or audio files. Typefaces are system font
+stacks, all art is inline SVG, and all sound is synthesized at runtime via the
+Web Audio API.
+
+No data is collected. All player data (decks, fight record, gauntlet runs, and
+settings) is stored locally in the browser or in a profile file the player
+chooses to export. There are no accounts, no analytics, and no servers.
+
+Contact: peterbrendanwrites@gmail.com

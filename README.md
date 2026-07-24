@@ -1,14 +1,19 @@
 # Masters of the Way
+
+**Play:** https://peterdsouza247.github.io/masters-of-the-way/
+
+One-on-one martial arts duels where decks are built from six real arts, each with a genuine mechanical identity drawn from how the art actually works. The central tension is the oldest argument in martial arts: master one way, or take what works from everywhere. Both are viable. Neither is free.
+
 ## Game Design Document
 
-| | |
-|---|---|
-| **Genre** | 1v1 card battler / deck builder |
-| **Theme** | Real martial arts, treated with respect and mechanical honesty |
-| **Platform** | HTML5, single file, desktop and mobile browsers |
-| **Session length** | 5 to 10 minutes per duel |
-| **Players** | Solo vs AI; local 2P pass-and-play |
-| **Status** | Playable proof of concept (`[masters_of_the_way.html](https://peterdsouza247.github.io/masters-of-the-way/)`) |
+|                    |                                                                       |
+| ------------------ | --------------------------------------------------------------------- |
+| **Genre**          | 1v1 card battler / deck builder                                       |
+| **Theme**          | Real martial arts, treated with respect and mechanical honesty        |
+| **Platform**       | HTML5, single file (`index.html`), desktop and mobile browsers        |
+| **Session length** | 5 to 10 minutes per duel                                             |
+| **Players**        | Solo vs AI; local 2P pass-and-play                                    |
+| **Status**         | **v1.0**, playable at the link above                                 |
 
 ---
 
@@ -43,31 +48,35 @@ Deck build (or pick prebuilt)
 ## 4. Systems
 
 ### 4.1 The six arts
+
 Each art has 8 base cards (max 2 copies) plus 2 master cards (max 1, purity-locked), and one mastery passive:
 
-| Art | Identity | Mastery passive |
-|---|---|---|
-| Boxing | Cheap fast hands, guards, counters | +1 Guard each turn |
-| Karate | Decisive single strikes, distance control both ways | First strike each turn +2 |
-| Taekwondo | Far-range kick chains, guard breaking | Strikes at Far +1 |
-| Muay Thai | Clinch control, elbows, bleed | Bleed effects +1 |
-| Judo | Grips and throws; standing becomes ground on your terms | Takedowns also stagger |
-| BJJ | Sweeps, positional control, submissions | Submissions +2 |
+| Art       | Identity                                                | Mastery passive           |
+| --------- | ------------------------------------------------------- | ------------------------- |
+| Boxing    | Cheap fast hands, guards, counters                      | +1 Guard each turn        |
+| Karate    | Decisive single strikes, distance control both ways     | First strike each turn +2 |
+| Taekwondo | Far-range kick chains, guard breaking                   | Strikes at Far +1         |
+| Muay Thai | Clinch control, elbows, bleed                           | Bleed effects +1          |
+| Judo      | Grips and throws; standing becomes ground on your terms | Takedowns also stagger    |
+| BJJ       | Sweeps, positional control, submissions                 | Submissions +2            |
 
 Plus 4 neutral Fundamentals cards that never count against purity.
 
 ### 4.2 Combat model
+
 20-card decks, 30 HP, 3 stamina per turn, guard resets at the start of your own turn. Submissions deal damage and force a tap if the opponent falls at or below a card-specific threshold. Bonds of statuses give each art its texture: the Plum prevents range changes, leg kicks stagger on repeat, Kumi-kata powers the next throw, Control amplifies ground offense.
 
 ### 4.3 AI
-Greedy scorer over playable cards with personality weights: aggression scales damage value, preferred range scores movement, lethal lines get finisher bonuses, submissions spike when a tap is live. Rosa pulls guard and sweeps; Somchai hunts the clinch; Reyes counters in the pocket.
+
+Greedy scorer over playable cards with personality weights: aggression scales damage value, preferred range scores movement, lethal lines get finisher bonuses, submissions spike when a tap is live. Rosa pulls guard and sweeps; Somchai hunts the clinch; Reyes counters in the pocket. Difficulty (Easy / Normal / Hard) tunes decision quality only. Opponents never get extra stats.
 
 ### 4.4 Persistence
-Multiple named deck slots (save / load / delete, overwrite confirmation), and a Fight Record of the last 25 bouts storing result, method, length, and the complete turn-by-turn log, reviewable any time. Full fight log also available live during a duel and from the result screen.
+
+Multiple named deck slots (save / load / delete, overwrite confirmation), and a Fight Record of the last 25 bouts storing result, method, length, and the complete turn-by-turn log, reviewable any time. Full fight log also available live during a duel and from the result screen. Everything can be exported to a portable **profile file** (see §10).
 
 ---
 
-## 5. Content Inventory (current build)
+## 5. Content Inventory
 
 52 unique cards, 6 mastery passives, 7 prebuilt decks (6 pure, 1 MMA mix), 7 AI fighters with bios and signature quotes, SVG portrait set, hotseat mode with hand-hiding pass screen.
 
@@ -75,7 +84,7 @@ Multiple named deck slots (save / load / delete, overwrite confirmation), and a 
 
 ## 6. UX and Presentation
 
-Dojo-dark palette with per-art card colors. SVG fighter portraits. Turn banners, KO / Tap Out punch-in on the result screen, impact flashes, screen shake, card play animations, pulsing low-HP bars. Mobile: 3-across cards, full-width end turn, 44px+ touch targets. Reduced-motion supported.
+Dojo-dark palette with per-art card colors. SVG fighter portraits. Turn banners, KO / Tap Out punch-in on the result screen, impact flashes, screen shake, card play animations, pulsing low-HP bars. Synthesized Web Audio sound effects (strikes, blocks, takedowns, bleed, KO/tap, bell, victory sting) with a mute toggle. Mobile: 3-across cards, full-width end turn, 44px+ touch targets. Reduced-motion supported. Full keyboard, ARIA screen-reader, and gamepad support.
 
 ---
 
@@ -84,17 +93,47 @@ Dojo-dark palette with per-art card colors. SVG fighter portraits. Turn banners,
 - Pure deck baseline: hand 5, mastery, easy combos. Mixed 3-art deck: hand 7, full range coverage, no mastery. Target within 5 percent win rate of each other across matchups.
 - Range dominance should decide about 60 percent of duels; raw curve efficiency the rest.
 - Submissions are the aggressive-BJJ win condition; tap thresholds (6 to 8 HP) keep them finishers, not openers.
-- Known watch items for the next pass: Widowmaker plus Boxing burst; Judo grip-throw tempo; whether Clinch needs a counter beyond Break Posture.
+- A headless AI-vs-AI **balance simulator** is built in: append `?sim=1` to the URL to run the matchup matrix and read pure-vs-mixed win rates, method/length/range statistics. It is a development tool and is never shown to players.
 
 ---
 
-## 8. Production Roadmap (post-POC)
+## 8. Modes
+
+- **Fight**: choose a deck, choose an opponent, one duel.
+- **The Gauntlet**: an arcade run against all seven masters in sequence, healing between bouts; retire with your streak or clear the ladder. Best streak and clears are tracked.
+- **Two Players**: local pass-and-play with a hand-hiding pass screen.
+- **Deck Builder**: build within the purity/mastery rules with multi-slot save/load.
+- **How to Play**: rules primer plus a coached tutorial fight vs Rosa.
+
+---
+
+## 9. Roadmap (post-v1.0)
 
 1. **More arts:** Wrestling (takedown chains), Aikido (redirection counters), Kyokushin, Capoeira (movement tricks). Each must bring a new verb, not a new number.
 2. **Career mode:** tournament ladder, deck rewards between rounds, rival storylines.
 3. **Async or live multiplayer** once the loop is validated with real players.
 4. **Presentation:** fighter animation vignettes on big hits, crowd audio, stadium themes per fighter.
 
-## 9. Risks
+---
 
-Cultural respect is non-negotiable: technique names and art identities need review by practitioners before any commercial release. Balance across purity levels is the permanent live-ops workload. Grappling legibility for players who don't train is the biggest onboarding risk; the tutorial fight should be vs Rosa for exactly this reason.
+## 10. Portable profiles
+
+All player data lives in the browser, and can be exported from the **Profile** screen to a single versioned JSON file (or a copy-paste code): decks, fight record, gauntlet runs, settings, and tutorial progress, plus a fighter name and career stats. Import with **Merge** (bring decks/record into a device, keeping its own preferences, ideal for pass-and-play) or **Replace** (a clean restore after a cache wipe or on a new device). This is how the game survives cleared caches and moves between systems without any account or server.
+
+---
+
+## Tech, privacy & license
+
+**No third-party dependencies; all assets are original or system-provided.** The game is a single self-contained `index.html` with no external libraries, fonts, images, or audio files. Typefaces are system font stacks, all art is inline SVG, and all sound is synthesized at runtime via the Web Audio API. See [`NOTICE`](NOTICE).
+
+**No data collected.** Decks, fight record, gauntlet runs, and settings are stored locally in your browser or in a profile file you choose to export. No accounts, no analytics, no servers.
+
+**License.** © 2026 Peter Brendan. All rights reserved. Made available for viewing and personal play only. See [`LICENSE`](LICENSE). For licensing, collaboration, or any other permission, contact **peterbrendanwrites@gmail.com**.
+
+## Risks
+
+Cultural respect is non-negotiable: technique names and art identities need review by practitioners before any commercial release. Balance across purity levels is the permanent live-ops workload. Grappling legibility for players who don't train is the biggest onboarding risk; the tutorial fight is vs Rosa for exactly this reason.
+
+## Credits
+
+Design, code, and art by **Peter Brendan** · peterbrendanwrites@gmail.com · part of [Peter's POCs](https://peterdsouza247.github.io/pocs/).
