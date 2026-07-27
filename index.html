@@ -2950,7 +2950,7 @@ img, canvas, .bust { image-rendering: pixelated; image-rendering: crisp-edges; }
     0 0 0 2px ${PAL.edge};
   background: ${PAL.panel};
 }
-#arena { background: ${PAL.bg1}; }
+#arena { background: ${PAL.bg1}; position: relative; }
 .fpanel.active {
   box-shadow:
     inset 2px 2px 0 ${PAL.goldHi},
@@ -3023,12 +3023,27 @@ h2 { letter-spacing: 3px; text-shadow: 2px 2px 0 ${PAL.edge}; }
   box-shadow: inset 1px 1px 0 ${PAL.goldHi}, inset -1px -1px 0 ${PAL.edge}, 0 0 0 2px ${PAL.edge};
 }
 
-/* ---- the sprite stage ---- */
+/* ---- the sprite stage ----
+   Capped at a 2x pixel scale. Left at width:100% a 256px-wide canvas
+   blows up to ~3.5x on desktop and pushes the hand off the screen. */
 #stage-wrap {
-  position: relative; width: 100%; margin: 0 0 8px;
+  position: relative; width: 100%; max-width: 512px; margin: 0 auto 6px;
   box-shadow: 0 0 0 2px ${PAL.edge}; line-height: 0;
 }
 #stage { width: 100%; height: auto; display: block; }
+#arena.stage-hidden #stage-wrap { display: none; }
+
+#stagetoggle {
+  position: absolute; top: 0; right: 0; z-index: 2;
+  padding: 3px 7px; font: inherit; font-size: 11px; letter-spacing: 1px;
+  border: none; background: rgba(8,6,17,.72); color: ${PAL.gold};
+  text-transform: uppercase; line-height: 1.4;
+}
+#arena.stage-hidden #stagetoggle {
+  position: static; display: block; margin: 0 auto 6px;
+  background: ${PAL.panel};
+  box-shadow: inset 1px 1px 0 ${PAL.panelHi}, inset -1px -1px 0 ${PAL.panelLo}, 0 0 0 2px ${PAL.edge};
+}
 
 /* ---- bitmap-rendered banner over the arena ---- */
 #banner { font-size: 0 !important; }
@@ -3059,8 +3074,31 @@ h2 { letter-spacing: 3px; text-shadow: 2px 2px 0 ${PAL.edge}; }
   .bust { animation: none; }
   #crt { background: none; }
 }
+
+/* ---- mobile ----
+   Vertical space is the scarce resource: the hand has to be reachable
+   without scrolling past the fighters. The stage shrinks first. */
 @media (max-width: 560px) {
-  #sndbtn { padding: 6px 9px; font-size: 11px; }
+  body { touch-action: manipulation; }
+  #stage-wrap { max-width: 100%; }
+  /* the toggle moves out of the corner and gets a real tap target */
+  #stagetoggle { padding: 6px 10px; font-size: 12px; }
+  /* keep the sound button clear of the full-width End Turn button */
+  #sndbtn {
+    bottom: auto; top: 6px; right: 6px;
+    padding: 6px 9px; font-size: 11px; opacity: .85;
+  }
+  .pixlogo { margin: 14px 0 4px !important; }
+  #crt { background:
+    repeating-linear-gradient(to bottom,
+      rgba(0,0,0,.14) 0px, rgba(0,0,0,.14) 1px,
+      rgba(0,0,0,0)   1px, rgba(0,0,0,0)   2px); }
+}
+
+/* Short landscape phones: the arena is the first thing to go. */
+@media (max-height: 460px) and (max-width: 900px) {
+  #stage-wrap { max-width: 320px; }
+  h2 { margin: 12px 0 6px; }
 }
 `;
 
@@ -3211,8 +3249,13 @@ var A = {
 
 try { A.muted = localStorage.getItem("motw-muted") === "1"; } catch (e) {}
 
+/* iOS will hand back an AudioContext that was created outside a user
+   gesture and then never let it leave the suspended state. So the
+   context is built lazily and ONLY from unlock(), which is called from a
+   real touch. Anything that wants sound before that is queued instead. */
 function init() {
   if (A.ctx) return A.ctx;
+  if (!A.gesture) return null;
   var C = window.AudioContext || window.webkitAudioContext;
   if (!C) return null;
   A.ctx = new C();
@@ -3232,8 +3275,12 @@ function init() {
   A.sfxGain = A.ctx.createGain();
   A.sfxGain.gain.value = 0.85;
 
+  A.crowdGain = A.ctx.createGain();
+  A.crowdGain.gain.value = 0.0001;
+
   A.musicGain.connect(A.master);
   A.sfxGain.connect(A.master);
+  A.crowdGain.connect(A.master);
   A.master.connect(comp);
   comp.connect(A.ctx.destination);
 
@@ -3407,11 +3454,130 @@ var SFX = {
   }
 };
 
+/* ================================================================ crowd
+
+   A hall full of people is mostly low, unvoiced noise with a slow swell,
+   so that is exactly how it is built: looping noise, band-limited to the
+   range a distant crowd occupies, with an LFO breathing on the gain. The
+   cheer is the same bed pushed up hard and let down slowly, which is
+   what a crowd reacting to a big shot actually sounds like.            */
+
+var crowd = null;
+
+function crowdStart() {
+  if (crowd) return;
+  if (!init()) { A.pendingCrowd = true; return; }
+
+  var src = A.ctx.createBufferSource();
+  src.buffer = A.noise;
+  src.loop = true;
+
+  var hp = A.ctx.createBiquadFilter();
+  hp.type = "highpass"; hp.frequency.value = 170;
+  var lp = A.ctx.createBiquadFilter();
+  lp.type = "lowpass"; lp.frequency.value = 950; lp.Q.value = 0.6;
+
+  var g = A.ctx.createGain();
+  g.gain.value = 0.6;
+
+  /* two slow oscillators so the swell never settles into an obvious cycle */
+  var lfo = A.ctx.createOscillator();
+  lfo.type = "sine"; lfo.frequency.value = 0.07;
+  var lfoAmt = A.ctx.createGain();
+  lfoAmt.gain.value = 0.3;
+  var lfo2 = A.ctx.createOscillator();
+  lfo2.type = "sine"; lfo2.frequency.value = 0.023;
+  var lfo2Amt = A.ctx.createGain();
+  lfo2Amt.gain.value = 0.18;
+
+  lfo.connect(lfoAmt); lfoAmt.connect(g.gain);
+  lfo2.connect(lfo2Amt); lfo2Amt.connect(g.gain);
+
+  src.connect(hp); hp.connect(lp); lp.connect(g); g.connect(A.crowdGain);
+  src.start(); lfo.start(); lfo2.start();
+
+  crowd = { src: src, lfo: lfo, lfo2: lfo2, g: g, base: 0.085 };
+
+  var t = A.ctx.currentTime;
+  A.crowdGain.gain.cancelScheduledValues(t);
+  A.crowdGain.gain.setValueAtTime(0.0001, t);
+  A.crowdGain.gain.exponentialRampToValueAtTime(crowd.base, t + 1.6);
+}
+
+function crowdStop() {
+  A.pendingCrowd = false;
+  if (!crowd || !A.ctx) return;
+  var t = A.ctx.currentTime;
+  var c = crowd;
+  crowd = null;
+  A.crowdGain.gain.cancelScheduledValues(t);
+  A.crowdGain.gain.setValueAtTime(Math.max(0.0001, A.crowdGain.gain.value), t);
+  A.crowdGain.gain.exponentialRampToValueAtTime(0.0001, t + 0.8);
+  setTimeout(function () {
+    try { c.src.stop(); c.lfo.stop(); c.lfo2.stop(); } catch (e) {}
+  }, 1000);
+}
+
+function crowdCheer(power) {
+  if (!crowd || !A.ctx) return;
+  var amt = Math.max(0.15, Math.min(1, (power || 3) / 8));
+  var t = A.ctx.currentTime;
+  var g = A.crowdGain.gain;
+  g.cancelScheduledValues(t);
+  g.setValueAtTime(Math.max(0.0001, g.value), t);
+  g.exponentialRampToValueAtTime(crowd.base + 0.30 * amt, t + 0.10 + amt * 0.08);
+  g.exponentialRampToValueAtTime(crowd.base, t + 0.9 + amt * 0.9);
+  /* a brighter layer on top: the voices that carry over the murmur */
+  noise({
+    t: t, filter: "bandpass", fc: 900, fc2: 1700, q: 0.5,
+    dur: 0.8 + amt * 0.9, gain: 0.05 + 0.11 * amt, bus: A.crowdGain
+  });
+}
+
 /* ================================================================ tracker
 
    Songs are step sequences. Each token is one step: a note name starts
    a note, "-" sustains the previous one, "." is a rest. Percussion uses
    k (kick), s (snare), h (hat), o (open hat).                          */
+
+/* Percussion voices. The taiko is what makes this read as a martial
+   arts theme rather than as generic chiptune: a hard stick transient
+   over a long, low, resonant body, struck on the strong beats.        */
+function drum(ch, when) {
+  var bus = A.musicGain;
+  switch (ch) {
+    case "d":   /* o-daiko: the big one */
+      noise({ t: when, filter: "bandpass", fc: 1500, fc2: 300, dur: 0.05, gain: 0.3, q: 0.7, bus: bus });
+      tone({ t: when, type: "sine", f: 116, f2: 46, dur: 0.42, gain: 0.62, bus: bus });
+      tone({ t: when, type: "triangle", f: 232, f2: 92, dur: 0.14, gain: 0.2, bus: bus });
+      break;
+    case "t":   /* shime-daiko: tighter, higher, keeps the pulse */
+      noise({ t: when, filter: "bandpass", fc: 2600, fc2: 900, dur: 0.04, gain: 0.24, q: 0.9, bus: bus });
+      tone({ t: when, type: "sine", f: 210, f2: 120, dur: 0.16, gain: 0.34, bus: bus });
+      break;
+    case "w":   /* hyoshigi: the wooden clappers */
+      noise({ t: when, filter: "bandpass", fc: 3400, dur: 0.035, gain: 0.3, q: 6, bus: bus });
+      tone({ t: when, type: "square", f: 1250, f2: 900, dur: 0.035, gain: 0.12, bus: bus });
+      break;
+    case "g":   /* small gong / cymbal wash on section ends */
+      noise({ t: when, filter: "highpass", fc: 4200, dur: 0.7, gain: 0.14, bus: bus });
+      tone({ t: when, type: "sine", f: 880, f2: 660, dur: 0.6, gain: 0.06, bus: bus });
+      break;
+    case "k":
+      tone({ t: when, type: "sine", f: 150, f2: 42, dur: 0.17, gain: 0.5, bus: bus });
+      break;
+    case "s":
+      noise({ t: when, fc: 1900, dur: 0.13, gain: 0.3, q: 0.8, bus: bus });
+      tone({ t: when, type: "triangle", f: 260, f2: 170, dur: 0.1, gain: 0.16, bus: bus });
+      break;
+    case "h":
+      noise({ t: when, filter: "highpass", fc: 7000, dur: 0.03, gain: 0.1, bus: bus });
+      break;
+    case "o":
+      noise({ t: when, filter: "highpass", fc: 6000, dur: 0.16, gain: 0.11, bus: bus });
+      break;
+  }
+}
 
 function parseChannel(str) {
   var toks = str.trim().split(/\s+/), ev = [], cur = null;
@@ -3445,16 +3611,7 @@ function scheduleStep(song, step, when) {
       if (e.step % ch.length !== step % ch.length) continue;
       var dur = e.dur * spb * 0.94;
       if (cfg.drum) {
-        if (e.note === "k") {
-          tone({ t: when, type: "sine", f: 150, f2: 42, dur: 0.17, gain: 0.5, bus: A.musicGain });
-        } else if (e.note === "s") {
-          noise({ t: when, fc: 1900, dur: 0.13, gain: 0.3, q: 0.8, bus: A.musicGain });
-          tone({ t: when, type: "triangle", f: 260, f2: 170, dur: 0.1, gain: 0.16, bus: A.musicGain });
-        } else if (e.note === "h") {
-          noise({ t: when, filter: "highpass", fc: 7000, dur: 0.03, gain: 0.1, bus: A.musicGain });
-        } else if (e.note === "o") {
-          noise({ t: when, filter: "highpass", fc: 6000, dur: 0.16, gain: 0.11, bus: A.musicGain });
-        }
+        drum(e.note, when);
       } else {
         var f = freq(e.note);
         if (!f) continue;
@@ -3471,10 +3628,11 @@ function scheduleStep(song, step, when) {
 function stopMusic() {
   if (A.timer) { clearInterval(A.timer); A.timer = null; }
   A.song = null;
+  A.pendingSong = null;
 }
 
 function playMusic(def) {
-  if (!init()) return;
+  if (!init()) { A.pendingSong = def; return; }      /* waiting on a touch */
   if (A.song && A.song.name === def.name) return;   /* already playing */
   stopMusic();
   var song = buildSong(def);
@@ -3497,77 +3655,254 @@ function playMusic(def) {
   }, 30);
 }
 
-/* ================================================================ the songs */
+/* ================================================================ the songs
 
-/* Menu: slow, modal, room to breathe. A minor with a flat-6 lean. */
+   All four are built on the Japanese "in" scale rooted on A: A, Bb, D,
+   E, F. The half step between the root and the second is what makes it
+   sound like a dojo rather than a western minor key, and it costs
+   nothing but choosing different notes. Under that sits taiko rather
+   than a kick-and-snare kit.                                          */
+
+/* Menu: slow, sparse, one drum every two bars. Room to read the screen. */
 var SONG_MENU = {
-  name: "menu", bpm: 84, div: 2, ch: [
-    { duty: 0.25, gain: 0.15, notes:
-      "a4 - - - e4 - - - f4 - - - e4 - - - " +
-      "d4 - - - c4 - - - b3 - - - . . . . " +
-      "c5 - - - b4 - - - a4 - - - g4 - - - " +
-      "f4 - - e4 - - d4 - c4 - - - . . . ." },
-    { duty: 0.125, gain: 0.07, notes:
-      "e4 - - - b3 - - - c4 - - - b3 - - - " +
-      "a3 - - - g3 - - - g3 - - - . . . . " +
-      "e4 - - - g4 - - - e4 - - - d4 - - - " +
-      "c4 - - c4 - - b3 - a3 - - - . . . ." },
-    { type: "triangle", gain: 0.26, notes:
-      "a1 - - - a1 - - - f1 - - - f1 - - - " +
-      "d1 - - - d1 - - - e1 - - - e1 - - - " +
-      "a1 - - - a1 - - - f1 - - - f1 - - - " +
-      "d1 - - - e1 - - - a1 - - - - - - -" }
-  ]
-};
-
-/* Battle: driving eighths, a hook that repeats, hats on the offbeat. */
-var SONG_BATTLE = {
-  name: "battle", bpm: 152, div: 2, ch: [
-    { duty: 0.25, gain: 0.17, notes:
-      "a4 - c5 - e5 - d5 - c5 - a4 - . . e4 - " +
-      "f4 - a4 - c5 - b4 - a4 - g4 - . . . . " +
-      "g4 - b4 - d5 - c5 - b4 - g4 - . . d4 - " +
-      "e4 - g4 - b4 - a4 - g4 - e4 - . . . . " },
-    { duty: 0.125, gain: 0.08, notes:
-      "e4 - a4 - . . b4 - a4 - e4 - . . c4 - " +
-      "c4 - f4 - . . a4 - f4 - c4 - . . . . " +
-      "d4 - g4 - . . b4 - g4 - d4 - . . b3 - " +
-      "b3 - e4 - . . g4 - e4 - b3 - . . . . " },
-    { type: "triangle", gain: 0.3, notes:
-      "a1 a1 a2 a1 a1 a1 a2 a1 a1 a1 a2 a1 e2 - e1 - " +
-      "f1 f1 f2 f1 f1 f1 f2 f1 f1 f1 f2 f1 c2 - c1 - " +
-      "g1 g1 g2 g1 g1 g1 g2 g1 g1 g1 g2 g1 d2 - d1 - " +
-      "e1 e1 e2 e1 e1 e1 e2 e1 e1 e1 e2 e1 e2 - e2 - " },
+  name: "menu", bpm: 72, div: 2, ch: [
+    { type: "triangle", gain: 0.17, notes:
+      "a4 - - - - - - - e4 - - - - - - - " +
+      "f4 - - - e4 - - - d4 - - - - - - - " +
+      "d4 - - - - - e4 - f4 - - - e4 - - - " +
+      "d4 - - - a3 - - - a3 - - - - - - -" },
+    { duty: 0.125, gain: 0.06, notes:
+      "e4 - - - - - - - a3 - - - - - - - " +
+      "a3 - - - . . . . f3 - - - - - - - " +
+      "a3 - - - - - - - d4 - - - - - - - " +
+      "a3 - - - e3 - - - a3 - - - - - - -" },
+    { type: "triangle", gain: 0.24, notes:
+      "a1 - - - - - - - a1 - - - - - - - " +
+      "d1 - - - - - - - d1 - - - - - - - " +
+      "bb1 - - - - - - - bb1 - - - - - - - " +
+      "a1 - - - - - - - e1 - - - - - - -" },
     { drum: true, notes:
-      "k h s h k h s h k h s h k k s h " +
-      "k h s h k h s h k h s h k k s o " +
-      "k h s h k h s h k h s h k k s h " +
-      "k h s h k h s h k k s h s s o . " }
+      "d . . . . . . . . . . . t . . . " +
+      "d . . . . . . . . . . . t . . . " +
+      "d . . . . . . . . . . . t . . . " +
+      "d . . . w . . . . . . . t . . g" }
   ]
 };
 
-/* Victory: eight bars would overstay. Four, then silence. */
+/* ---------------------------------------------------------------- battle
+
+   One theme per art. Each gets its own scale, tempo and percussion,
+   because that is what actually distinguishes them: a faster version of
+   the same tune would just sound like the same tune. Karate and judo
+   share taiko but not a mode; muay thai runs on the ching cymbal's
+   two-stroke pulse; BJJ is built on a berimbau ostinato; boxing is a
+   gym, not a temple, so it gets a kit and a blues scale.              */
+
+var THEMES = {
+
+  /* Japan, "in" scale, o-daiko on the strong beats. */
+  karate: {
+    name: "t-karate", bpm: 156, div: 2, ch: [
+      { duty: 0.25, gain: 0.17, notes:
+        "a4 - bb4 - a4 - e4 - f4 - e4 - d4 - - - " +
+        "d4 - e4 - f4 - e4 - d4 - a3 - . . a3 -" },
+      { duty: 0.125, gain: 0.075, notes:
+        "a3 - - - e4 - - - a3 - - - e4 - - - " +
+        "d4 - - - a3 - - - d4 - - - a3 - - -" },
+      { type: "triangle", gain: 0.3, notes:
+        "a1 - a1 - a1 a1 a1 - a1 - a1 - e1 - e1 - " +
+        "d1 - d1 - d1 d1 d1 - d1 - d1 - a1 - a1 -" },
+      { drum: true, notes:
+        "d . . t d . t . d . . t d t d . " +
+        "d . . t d . t . d . . t d t d w" }
+    ]
+  },
+
+  /* Japan again, but a heavier march: judo is about breaking balance. */
+  judo: {
+    name: "t-judo", bpm: 168, div: 2, ch: [
+      { duty: 0.25, gain: 0.17, notes:
+        "a4 - - - a4 - c5 - b4 - - - e4 - - - " +
+        "f4 - - - e4 - c5 - b4 - a4 - a4 - - -" },
+      { duty: 0.125, gain: 0.075, notes:
+        "e4 - - - e4 - - - e4 - - - b3 - - - " +
+        "c4 - - - b3 - - - e4 - - - e4 - - -" },
+      { type: "triangle", gain: 0.32, notes:
+        "a1 a1 - a1 a1 - a1 a1 e1 e1 - e1 e1 - e1 e1 " +
+        "f1 f1 - f1 f1 - f1 f1 e1 e1 - e1 e1 - e1 e1" },
+      { drum: true, notes:
+        "d . d . t . d . d . d . t t d . " +
+        "d . d . t . d . d w d w t t d g" }
+    ]
+  },
+
+  /* Thailand: the ching cymbal's open-closed pulse under a bright
+     pentatonic line. The wood click is the timekeeper, not the drum. */
+  muaythai: {
+    name: "t-muaythai", bpm: 144, div: 2, ch: [
+      { duty: 0.25, gain: 0.17, notes:
+        "d5 - c5 - a4 - g4 - a4 - c5 - d5 - - - " +
+        "c5 - a4 - g4 - a4 - c5 - d5 - . . . ." },
+      { duty: 0.125, gain: 0.075, notes:
+        "g3 - - - d4 - - - g3 - - - d4 - - - " +
+        "c4 - - - g3 - - - d4 - - - g3 - - -" },
+      { type: "triangle", gain: 0.3, notes:
+        "g1 - g1 - g1 - g1 - d1 - d1 - d1 - d1 - " +
+        "c2 - c2 - g1 - g1 - d1 - d1 - g1 - g1 -" },
+      { drum: true, notes:
+        "d . w . t . w . d . w . t t w . " +
+        "d . w . t . w . d w t w d t d g" }
+    ]
+  },
+
+  /* Korea: minor pentatonic, quick and high, snapping like the kicks. */
+  taekwondo: {
+    name: "t-taekwondo", bpm: 162, div: 2, ch: [
+      { duty: 0.25, gain: 0.17, notes:
+        "e5 - d5 - c5 - a4 - c5 - d5 - e5 - - - " +
+        "g5 - e5 - d5 - c5 - a4 - c5 - d5 - - -" },
+      { duty: 0.125, gain: 0.075, notes:
+        "a3 - e4 - a3 - e4 - a3 - e4 - a3 - e4 - " +
+        "c4 - g4 - c4 - g4 - a3 - e4 - a3 - e4 -" },
+      { type: "triangle", gain: 0.3, notes:
+        "a1 a1 - a1 a1 a1 - a1 a1 a1 - a1 e1 - e1 - " +
+        "c2 c2 - c2 c2 c2 - c2 d1 d1 - d1 e1 - e1 -" },
+      { drum: true, notes:
+        "d t . t d . t . d t . t d t d . " +
+        "d t . t d . t . d t d t d t d g" }
+    ]
+  },
+
+  /* Brazil: a berimbau figure, which is only ever two or three pitches
+     repeating. Sparse and swung, so the ground game has room.          */
+  bjj: {
+    name: "t-bjj", bpm: 132, div: 2, ch: [
+      { duty: 0.5, gain: 0.15, notes:
+        "d4 - - d4 e4 - - . d4 - e4 - . . d4 - " +
+        "d4 - - d4 e4 - - . e4 - d4 - . . d4 -" },
+      { duty: 0.125, gain: 0.07, notes:
+        "d3 - - - - - - - a3 - - - - - - - " +
+        "bb3 - - - - - - - a3 - - - - - - -" },
+      { type: "triangle", gain: 0.28, notes:
+        "d1 - - - d1 - - - a1 - - - a1 - - - " +
+        "bb1 - - - bb1 - - - a1 - - - a1 - - -" },
+      { drum: true, notes:
+        "d . t t . t d . t . d t . t t . " +
+        "d . t t . t d . t w d t . t t g" }
+    ]
+  },
+
+  /* A gym, not a temple: kit drums, blues scale, straight ahead. */
+  boxing: {
+    name: "t-boxing", bpm: 168, div: 2, ch: [
+      { duty: 0.25, gain: 0.17, notes:
+        "e4 - g4 - a4 - bb4 - b4 - a4 - g4 - e4 - " +
+        "e4 - g4 - b4 - a4 - g4 - e4 - . . d4 -" },
+      { duty: 0.125, gain: 0.075, notes:
+        "b3 - - - b3 - - - e4 - - - e4 - - - " +
+        "d4 - - - d4 - - - b3 - - - b3 - - -" },
+      { type: "triangle", gain: 0.3, notes:
+        "e1 e1 e2 e1 e1 e1 e2 e1 g1 g1 g2 g1 a1 a1 a2 a1 " +
+        "e1 e1 e2 e1 e1 e1 e2 e1 d1 d1 d2 d1 e1 e1 e2 e1" },
+      { drum: true, notes:
+        "k h s h k h s h k h s h k k s h " +
+        "k h s h k h s h k k s h s s o ." }
+    ]
+  },
+
+  /* No tradition to honour, so: fast, low and mean. */
+  mma: {
+    name: "t-mma", bpm: 172, div: 2, ch: [
+      { duty: 0.25, gain: 0.17, notes:
+        "d4 - - f4 e4 - d4 - a4 - - g4 f4 - e4 - " +
+        "d4 - - f4 a4 - g4 - f4 - e4 - d4 - - -" },
+      { duty: 0.125, gain: 0.075, notes:
+        "a3 - - - a3 - - - d4 - - - d4 - - - " +
+        "a3 - - - a3 - - - e4 - - - e4 - - -" },
+      { type: "triangle", gain: 0.32, notes:
+        "d1 d1 - d1 d1 - d1 d1 d1 d1 - d1 a1 - a1 - " +
+        "bb1 bb1 - bb1 bb1 - bb1 bb1 a1 a1 - a1 a1 - a1 -" },
+      { drum: true, notes:
+        "d t d t d . t . d t d t d t d . " +
+        "d t d t d w t w d t d t d t d g" }
+    ]
+  }
+};
+
+function themeFor(art) {
+  return THEMES[art] || THEMES.mma;
+}
+
+/* Victory: rising fourths, hyoshigi clap, one gong. Then silence. */
 var SONG_WIN = {
-  name: "win", bpm: 150, div: 2, loop: false, ch: [
-    { duty: 0.5, gain: 0.2, notes: "c5 - e5 - g5 - c6 - - - g5 - c6 - - - - - - -" },
-    { duty: 0.25, gain: 0.1, notes: "e4 - g4 - c5 - e5 - - - c5 - e5 - - - - - - -" },
-    { type: "triangle", gain: 0.3, notes: "c2 - c2 - g1 - c2 - - - g1 - c2 - - - - - - -" },
-    { drum: true, notes: "k . s . k . s . k k s . k . s . . . . ." }
+  name: "win", bpm: 144, div: 2, loop: false, ch: [
+    { duty: 0.5, gain: 0.2,  notes: "a4 - d5 - e5 - a5 - - - e5 - a5 - - - - - - -" },
+    { duty: 0.25, gain: 0.1, notes: "e4 - a4 - a4 - e5 - - - a4 - e5 - - - - - - -" },
+    { type: "triangle", gain: 0.3, notes: "a1 - a1 - a1 - a1 - - - e1 - a1 - - - - - - -" },
+    { drum: true, notes: "d . t . d . d . d w d . d t d . g . . ." }
   ]
 };
 
+/* Defeat: the same scale walking down, two drums, no resolution. */
 var SONG_LOSE = {
-  name: "lose", bpm: 96, div: 2, loop: false, ch: [
-    { duty: 0.25, gain: 0.17, notes: "a4 - - - g4 - - - f4 - - - e4 - - - - - - -" },
-    { type: "triangle", gain: 0.28, notes: "a1 - - - f1 - - - d1 - - - e1 - - - a1 - - -" }
+  name: "lose", bpm: 80, div: 2, loop: false, ch: [
+    { type: "triangle", gain: 0.18, notes: "a4 - - - f4 - - - e4 - - - d4 - - - - - - -" },
+    { type: "triangle", gain: 0.28, notes: "a1 - - - f1 - - - d1 - - - e1 - - - a1 - - -" },
+    { drum: true, notes: "d . . . . . . . t . . . . . . . d . . ." }
   ]
 };
 
 /* ================================================================ export */
 
+/* ---------------------------------------------------------------- unlocking
+
+   Mobile needs three things that desktop does not: the context must be
+   born inside a gesture, it must be nudged with an actual sound before
+   iOS considers it live, and on iPhone the hardware ringer switch will
+   silence WebAudio entirely unless a media element has claimed a
+   playback audio session first. All three are handled here.           */
+
+function primeSilentAudio() {
+  if (A.silent) return;
+  try {
+    var el = document.createElement("audio");
+    el.setAttribute("playsinline", "");
+    el.setAttribute("preload", "auto");
+    el.loop = true;
+    el.volume = 0.0001;
+    /* 44-byte WAV header, no samples: enough to claim the session */
+    el.src = "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=";
+    var p = el.play();
+    if (p && p.catch) p.catch(function () {});
+    A.silent = el;
+  } catch (e) {}
+}
+
 function unlock() {
+  A.gesture = true;
+  try {
+    /* Safari 17+: stops the ringer switch from muting us */
+    if (navigator.audioSession) navigator.audioSession.type = "playback";
+  } catch (e) {}
+  primeSilentAudio();
+
   if (!init()) return;
-  if (A.ctx.state === "suspended") A.ctx.resume();
+  if (A.ctx.state !== "running" && A.ctx.resume) A.ctx.resume();
+
+  /* a zero-length buffer through the graph: the ritual iOS expects */
+  if (!A.kicked) {
+    A.kicked = true;
+    try {
+      var s = A.ctx.createBufferSource();
+      s.buffer = A.ctx.createBuffer(1, 1, 22050);
+      s.connect(A.ctx.destination);
+      s.start(0);
+    } catch (e) {}
+  }
+
+  /* anything requested before the first touch happens now */
+  if (A.pendingSong) { var d = A.pendingSong; A.pendingSong = null; playMusic(d); }
+  if (A.pendingCrowd) { A.pendingCrowd = false; crowdStart(); }
 }
 
 function setMuted(m) {
@@ -3580,9 +3915,16 @@ var api = {
   unlock: unlock,
   isMuted: function () { return A.muted; },
   setMuted: setMuted,
-  music: { menu: SONG_MENU, battle: SONG_BATTLE, win: SONG_WIN, lose: SONG_LOSE },
+  music: { menu: SONG_MENU, win: SONG_WIN, lose: SONG_LOSE },
+  themeFor: themeFor,
+  themes: THEMES,
   play: function (n) { if (n) playMusic(n); },
   stop: stopMusic,
+  crowd: {
+    start: function () { crowdStart(); },
+    stop: function () { crowdStop(); },
+    cheer: function (p) { if (!A.muted) crowdCheer(p); }
+  },
   sfx: function (name, arg) {
     if (!A.ctx || A.muted) return;
     var f = SFX[name] || SFX[name + "_"];
@@ -3593,14 +3935,34 @@ var api = {
 window.MOTW_RETRO = window.MOTW_RETRO || {};
 window.MOTW_RETRO.audio = api;
 
-/* Browsers require a gesture before audio starts. */
-["pointerdown", "keydown", "touchstart"].forEach(function (ev) {
-  window.addEventListener(ev, function once() {
-    unlock();
-    ["pointerdown", "keydown", "touchstart"].forEach(function (e2) {
-      window.removeEventListener(e2, once);
+/* Listen broadly, and keep listening until the context is genuinely
+   running. A single "unlock on first pointerdown" is the usual reason
+   mobile stays silent: if that first attempt is rejected there is never
+   a second one. `touchend` matters most on iOS, where `touchstart` on a
+   scrollable page is sometimes not treated as an activating gesture. */
+var UNLOCK_EVENTS = ["touchend", "touchstart", "pointerdown", "pointerup",
+                     "mousedown", "click", "keydown"];
+
+function tryUnlock() {
+  unlock();
+  if (A.ctx && A.ctx.state === "running") {
+    UNLOCK_EVENTS.forEach(function (e) {
+      window.removeEventListener(e, tryUnlock, true);
     });
-  }, { once: false });
+  }
+}
+
+UNLOCK_EVENTS.forEach(function (e) {
+  window.addEventListener(e, tryUnlock, true);
+});
+
+/* Coming back from a locked screen or another tab leaves the context
+   suspended (or "interrupted" on iOS); pick it back up. */
+document.addEventListener("visibilitychange", function () {
+  if (!document.hidden && A.ctx && A.ctx.state !== "running" && A.ctx.resume) {
+    A.ctx.resume();
+    if (A.silent) { var p = A.silent.play(); if (p && p.catch) p.catch(function () {}); }
+  }
 });
 
 })();
@@ -3620,7 +3982,10 @@ window.MOTW_RETRO.audio = api;
 var R = window.MOTW_RETRO || (window.MOTW_RETRO = {});
 var PAL = R.PAL;
 
-var W = 256, H = 136, GROUND = 112;
+/* A letterbox stage. The fighters are ~46px tall, so the canvas only
+   needs enough headroom for them plus the banner; anything more is
+   vertical space stolen from the player's hand. */
+var W = 256, H = 92, GROUND = 74;
 
 /* ---------------------------------------------------------------- palettes */
 
@@ -3664,8 +4029,24 @@ var ART_LOOK = {
   mma:       { bare: true,  shorts: "#2a2440", glove: "#1c1830", skin: SKINS[4], hair: "#120e14" }
 };
 
-function paletteFor(key) {
-  return makePalette(ART_LOOK[key] || ART_LOOK.mma);
+/* Alternate colours, used when both fighters are the same art. Arcade
+   fighters have always solved the mirror match with a palette swap, and
+   in judo's case the blue-versus-white gi is what competition actually
+   does. Skin and hair change too, so the two read apart in a fast
+   exchange and not just when you stop to look. */
+var ART_LOOK_ALT = {
+  boxing:    { bare: true,  shorts: "#3b6fd8", glove: "#3b6fd8", skin: SKINS[3], hair: "#7a5326" },
+  karate:    { gi: "#cdd6e8", belt: "#8a2b22", trim: "#8a2b22", skin: SKINS[1], band: "#c94f3d", hair: "#2b1a12" },
+  taekwondo: { gi: "#f0e2b8", trim: "#2f5fa8", belt: "#2f5fa8", skin: SKINS[2], hair: "#241a14" },
+  muaythai:  { bare: true,  shorts: "#c8353f", band: "#e8d9a8", glove: "#2f5fa8", skin: SKINS[4], hair: "#120d12" },
+  judo:      { gi: "#e8e6dc", belt: "#141018", skin: SKINS[2], hair: "#1d1410" },
+  bjj:       { gi: "#2f8f8a", belt: "#123c3a", skin: SKINS[3], hair: "#5d4326" },
+  mma:       { bare: true,  shorts: "#a8323c", glove: "#5a1a20", skin: SKINS[0], hair: "#3a2418" }
+};
+
+function paletteFor(key, variant) {
+  var table = variant ? ART_LOOK_ALT : ART_LOOK;
+  return makePalette(table[key] || table.mma || ART_LOOK.mma);
 }
 
 /* ---------------------------------------------------------------- poses
@@ -3751,7 +4132,83 @@ var POSES = {
     head: [-16, 5], neck: [-11, 5], hip: [3, 5],
     eF: [-8, 3], hF: [-3, 1], eB: [-13, 2], hB: [-18, 1],
     kF: [11, 5], fF: [19, 3], kB: [10, 3], fB: [18, 1]
+  },
+  /* Anticipation. A strike that starts from the guard reads as floaty;
+     coiling back for two frames first is what makes it land. */
+  windUp: {
+    head: [-3, 40], neck: [-2, 33], hip: [-1, 20],
+    eF: [2, 28], hF: [3, 35], eB: [-9, 28], hB: [-6, 34],
+    kF: [3, 10], fF: [5, 0], kB: [-7, 10], fB: [-10, 0]
+  },
+  /* A chambered leg: knee up, foot tucked, ready to extend. Kicks that
+     skip this look like the fighter is stepping, not kicking. */
+  chamber: {
+    head: [-1, 41], neck: [-1, 34], hip: [0, 21],
+    eF: [4, 30], hF: [7, 36], eB: [-8, 28], hB: [-11, 32],
+    kF: [10, 24], fF: [3, 16], kB: [-4, 11], fB: [-6, 0]
   }
+};
+
+/* ---------------------------------------------------------------- actions
+
+   Each technique is a short keyframe track: pose, time in milliseconds,
+   how far the body drives forward, and the easing into that frame.
+   `out` is fast-then-settle and belongs on the strike itself; `inout`
+   is the unhurried return to guard.                                   */
+
+var E = {
+  lin:   function (t) { return t; },
+  out:   function (t) { return 1 - Math.pow(1 - t, 3); },
+  "in":  function (t) { return t * t; },
+  inout: function (t) { return t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2; },
+  back:  function (t) { return 1 + 2.2 * Math.pow(t - 1, 3) + 1.2 * Math.pow(t - 1, 2); }
+};
+
+function kf(pose, t, lunge, ease) {
+  return { pose: pose, t: t, lunge: lunge || 0, ease: ease || "out" };
+}
+
+var ACTIONS = {
+  jab: [kf("guard", 0, 0), kf("windUp", 60, -1, "in"),
+        kf("jab", 140, 5, "out"), kf("jab", 200, 5, "lin"),
+        kf("guard", 350, 0, "inout")],
+
+  cross: [kf("guard", 0, 0), kf("windUp", 80, -2, "in"),
+          kf("cross", 175, 7, "out"), kf("cross", 250, 7, "lin"),
+          kf("guard", 430, 0, "inout")],
+
+  hook: [kf("guard", 0, 0), kf("windUp", 85, -2, "in"),
+         kf("hook", 180, 5, "out"), kf("hook", 245, 5, "lin"),
+         kf("guard", 420, 0, "inout")],
+
+  uppercut: [kf("guard", 0, 0), kf("windUp", 90, -2, "in"),
+             kf("uppercut", 185, 4, "back"), kf("uppercut", 255, 4, "lin"),
+             kf("guard", 440, 0, "inout")],
+
+  highkick: [kf("guard", 0, 0), kf("chamber", 110, 1, "out"),
+             kf("highkick", 200, 7, "out"), kf("highkick", 275, 7, "lin"),
+             kf("chamber", 360, 2, "inout"), kf("guard", 490, 0, "inout")],
+
+  lowkick: [kf("guard", 0, 0), kf("chamber", 100, 1, "out"),
+            kf("lowkick", 180, 6, "out"), kf("lowkick", 245, 6, "lin"),
+            kf("guard", 400, 0, "inout")],
+
+  knee: [kf("guard", 0, 0), kf("chamber", 90, 0, "out"),
+         kf("knee", 170, 6, "out"), kf("knee", 235, 6, "lin"),
+         kf("guard", 385, 0, "inout")],
+
+  grapple: [kf("guard", 0, 0), kf("windUp", 70, -2, "in"),
+            kf("grapple", 180, 8, "out"), kf("grapple", 330, 8, "lin"),
+            kf("guard", 480, 0, "inout")],
+
+  block: [kf("block", 50, -1, "out"), kf("block", 240, -1, "lin"),
+          kf("guard", 360, 0, "inout")],
+
+  hit: [kf("hit", 55, 0, "out"), kf("hit", 190, 0, "lin"),
+        kf("guard", 350, 0, "inout")],
+
+  sub: [kf("groundTop", 140, 0, "out"), kf("groundTop", 420, 0, "lin"),
+        kf("groundTop", 560, 0, "inout")]
 };
 
 var JOINTS = ["head", "neck", "hip", "eF", "hF", "eB", "hB", "kF", "fF", "kB", "fB"];
@@ -3842,53 +4299,116 @@ Painter.prototype.torso = function (nx, ny, hx, hy, m, shoulderW, hipW) {
 
 /* ---------------------------------------------------------------- fighter */
 
-function Fighter(side, artKey) {
+function Fighter(side, artKey, variant) {
   this.side = side;                 /* +1 faces right, -1 faces left */
   this.art = artKey;
-  this.pal = paletteFor(artKey);
+  this.variant = variant ? 1 : 0;
+  this.pal = paletteFor(artKey, this.variant);
   this.x = 80; this.y = GROUND;
   this.base = "idle";
   this.cur = clonePose(POSES.idle);
   this.target = POSES.idle;
-  this.lunge = 0; this.lungeTarget = 0;
-  this.knock = 0;
+  this.lunge = 0;
+  this.knock = 0; this.knockVel = 0;
   this.action = null;
+  /* offset phases so two fighters never breathe in lockstep */
   this.bob = Math.random() * 6.28;
+  this.sway = Math.random() * 6.28;
 }
 
 Fighter.prototype.setBase = function (name) {
   if (POSES[name]) this.base = name;
 };
 
-Fighter.prototype.act = function (pose, dur, lunge) {
-  if (!POSES[pose]) return;
-  this.action = { pose: pose, until: performance.now() + (dur || 320) };
-  this.lungeTarget = lunge || 0;
+/* Start a keyframe track. `scale` stretches the whole thing in time so a
+   heavy technique can play slower than a jab without a second table. */
+Fighter.prototype.act = function (name, scale, lungeMul) {
+  var track = ACTIONS[name];
+  if (!track) {
+    if (!POSES[name]) return;
+    track = [kf(name, 120, 0, "out"), kf(name, 300, 0, "lin"),
+             kf("guard", 440, 0, "inout")];
+  }
+  this.action = {
+    track: track,
+    start: performance.now(),
+    scale: scale || 1,
+    lungeMul: lungeMul === undefined ? 1 : lungeMul,
+    from: clonePose(this.cur),
+    fromLunge: this.lunge
+  };
 };
 
 Fighter.prototype.hurt = function (power) {
-  this.action = { pose: "hit", until: performance.now() + 260 };
-  this.knock = Math.min(9, 3 + (power || 2));
+  this.act("hit");
+  /* knockback as a spring rather than a decay, so heavy shots travel */
+  this.knockVel = Math.min(15, 4 + (power || 2) * 1.3);
+};
+
+/* Sample the current keyframe track directly into `cur`. Assigning the
+   interpolated pose (rather than easing toward it) is what makes the
+   motion read as animation instead of drift. */
+Fighter.prototype.sampleAction = function (now) {
+  var a = this.action;
+  var el = (now - a.start) / a.scale;
+  var track = a.track;
+  var last = track[track.length - 1];
+
+  if (el >= last.t) { this.action = null; return false; }
+
+  var prev = null, next = track[0], prevT = 0;
+  for (var i = 0; i < track.length; i++) {
+    if (el < track[i].t) { next = track[i]; break; }
+    prev = track[i];
+    prevT = track[i].t;
+  }
+
+  var fromPose = prev ? POSES[prev.pose] : a.from;
+  var fromLunge = prev ? prev.lunge * a.lungeMul : a.fromLunge;
+  var span = Math.max(1, next.t - prevT);
+  var u = Math.max(0, Math.min(1, (el - prevT) / span));
+  var e = (E[next.ease] || E.out)(u);
+
+  var toPose = POSES[next.pose] || POSES.guard;
+  for (var j = 0; j < JOINTS.length; j++) {
+    var k = JOINTS[j], c = this.cur[k], f = fromPose[k], t2 = toPose[k];
+    c[0] = f[0] + (t2[0] - f[0]) * e;
+    c[1] = f[1] + (t2[1] - f[1]) * e;
+  }
+  this.lunge = fromLunge + (next.lunge * a.lungeMul - fromLunge) * e;
+  return true;
 };
 
 Fighter.prototype.update = function (dt, now) {
-  if (this.action && now > this.action.until) {
-    this.action = null;
-    this.lungeTarget = 0;
+  if (this.action && this.sampleAction(now)) {
+    /* a track is driving the pose this frame */
+  } else {
+    this.target = POSES[this.base] || POSES.idle;
+    /* framerate-independent smoothing: the same visual speed whether
+       the browser is giving us 60fps or 30 */
+    var k = 1 - Math.pow(1 - 0.18, dt * 60);
+    lerpPose(this.cur, this.target, k);
+    this.lunge += (0 - this.lunge) * k;
   }
-  var poseName = this.action ? this.action.pose : this.base;
-  this.target = POSES[poseName] || POSES.idle;
-  lerpPose(this.cur, this.target, this.action ? 0.42 : 0.22);
-  this.lunge += (this.lungeTarget - this.lunge) * 0.35;
-  this.knock *= 0.82;
+
+  /* knockback spring */
+  this.knock += this.knockVel * dt * 60 * 0.5;
+  this.knockVel *= Math.pow(0.86, dt * 60);
+  this.knock *= Math.pow(0.80, dt * 60);
+  if (Math.abs(this.knock) < 0.05) this.knock = 0;
+
   this.bob += dt * 2.6;
+  this.sway += dt * 1.7;
 };
 
 Fighter.prototype.draw = function (P) {
   var p = this.cur, s = this.side, pal = this.pal;
   var standing = this.base !== "ko" && this.base !== "groundBottom" && this.base !== "groundTop";
-  var bobY = standing && !this.action ? Math.sin(this.bob) * 0.9 : 0;
-  var ox = this.x + s * this.lunge - s * this.knock;
+  /* breathing continues under an action, just quieter; a fighter that
+     goes perfectly still mid-technique looks like a paused sprite */
+  var bobY = standing ? Math.sin(this.bob) * (this.action ? 0.35 : 0.9) : 0;
+  var swayX = standing && !this.action ? Math.sin(this.sway) * 0.6 : 0;
+  var ox = this.x + s * this.lunge - s * this.knock + swayX;
   var oy = this.y + bobY;
 
   /* map fighter-local coords into canvas space */
@@ -3988,71 +4508,258 @@ Spark.prototype.draw = function (P) {
    Painted once into an offscreen canvas and blitted each frame: a dojo
    hall with lit paper screens, hanging banners and a silhouetted crowd. */
 
-function buildBackdrop() {
-  var cv = document.createElement("canvas");
-  cv.width = W; cv.height = H;
-  var ctx = cv.getContext("2d");
-  var P = new Painter(ctx);
+/* --- shared furniture ------------------------------------------------ */
 
+function rng(seed) {
+  return function () {
+    seed = (seed * 1103515245 + 12345) & 0x7fffffff;
+    return seed / 0x7fffffff;
+  };
+}
+
+function sky(ctx, stops) {
   var g = ctx.createLinearGradient(0, 0, 0, GROUND);
-  g.addColorStop(0, "#241a4a");
-  g.addColorStop(0.55, "#1a1336");
-  g.addColorStop(1, "#120d26");
+  stops.forEach(function (s) { g.addColorStop(s[0], s[1]); });
   ctx.fillStyle = g;
   ctx.fillRect(0, 0, W, GROUND);
+}
 
-  /* lit shoji panels along the back wall */
-  for (var i = 0; i < 7; i++) {
-    var x = 8 + i * 35;
-    P.rect(x, 22, 28, 52, "#3a2f66");
-    P.rect(x + 2, 24, 24, 48, "#f0d89a");
-    P.rect(x + 2, 24, 24, 20, "#fbe9be");
-    ctx.fillStyle = "#3a2f66";
-    for (var v = 1; v < 3; v++) P.rect(x + 2 + v * 8, 24, 1, 48, "#3a2f66");
-    for (var hh = 1; hh < 4; hh++) P.rect(x + 2, 24 + hh * 12, 24, 1, "#3a2f66");
-    P.rect(x, 22, 28, 2, "#120d26");
-  }
-
-  /* crowd silhouettes in front of the wall */
-  var seed = 7;
-  function rnd() { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed / 0x7fffffff; }
-  for (var row = 0; row < 2; row++) {
-    var y = 66 + row * 9;
+function crowdRows(ctx, y0, tints, rows, seed) {
+  var rnd = rng(seed || 7);
+  for (var row = 0; row < (rows || 2); row++) {
+    var y = y0 + row * 8;
     for (var cx = -4; cx < W + 6; cx += 9 + Math.floor(rnd() * 3)) {
-      var tint = ["#1b1430", "#241a3e", "#150f26"][Math.floor(rnd() * 3)];
-      ctx.fillStyle = tint;
-      ctx.fillRect(cx, y + 4, 8, 10);
-      ctx.beginPath();
+      ctx.fillStyle = tints[Math.floor(rnd() * tints.length)];
+      ctx.fillRect(cx, y + 4, 8, 9);
       ctx.fillRect(cx + 2, y, 5, 5);
     }
   }
+}
 
-  /* hanging banners */
-  [16, W - 30].forEach(function (bx, idx) {
-    P.rect(bx, 4, 14, 46, "#7a1f2a");
-    P.rect(bx, 4, 14, 2, "#c8a24a");
-    P.rect(bx + 1, 6, 12, 42, "#a02a36");
-    P.rect(bx + 4, 12, 6, 6, "#f0d89a");
-    P.rect(bx + 4, 24, 6, 6, "#f0d89a");
-    P.rect(bx + 4, 36, 6, 4, "#f0d89a");
-  });
-
-  /* floor: boards receding, with a lighter mat inset */
-  var fg = ctx.createLinearGradient(0, GROUND - 8, 0, H);
-  fg.addColorStop(0, "#5a3b28");
-  fg.addColorStop(1, "#301d16");
+/* A flat mat or canvas floor with a lit leading edge. */
+function floorFlat(ctx, P, top, bottom, edgeHi, edgeLo) {
+  var fg = ctx.createLinearGradient(0, GROUND - 6, 0, H);
+  fg.addColorStop(0, top);
+  fg.addColorStop(1, bottom);
   ctx.fillStyle = fg;
-  ctx.fillRect(0, GROUND - 8, W, H - GROUND + 8);
-  P.rect(0, GROUND - 9, W, 1, "#8a6340");
-  P.rect(0, GROUND - 8, W, 1, "#2a1a12");
-  for (var b = 0; b < 9; b++) {
-    var bxx = b * 30 - 10;
-    ctx.fillStyle = "rgba(20,10,8,.45)";
-    ctx.fillRect(bxx, GROUND - 7, 1, H - GROUND + 7);
-  }
-  ctx.fillStyle = "rgba(255,220,160,.06)";
-  ctx.fillRect(0, GROUND - 7, W, 3);
+  ctx.fillRect(0, GROUND - 6, W, H - GROUND + 6);
+  P.rect(0, GROUND - 7, W, 1, edgeHi);
+  P.rect(0, GROUND - 6, W, 1, edgeLo);
+}
 
+/* Ring or cage ropes across the foreground, drawn over everything. */
+function ropes(ctx, P, cols) {
+  for (var i = 0; i < 3; i++) {
+    var y = GROUND - 30 + i * 13;
+    P.rect(0, y, W, 2, cols[i % cols.length]);
+    P.rect(0, y, W, 1, "rgba(255,255,255,.25)");
+  }
+  P.rect(4, GROUND - 34, 4, 40, "#3a3340");
+  P.rect(W - 8, GROUND - 34, 4, 40, "#3a3340");
+}
+
+/* --- the stages ------------------------------------------------------ */
+
+var BACKDROPS = {
+
+  /* A mountain dojo: lit paper screens, hanging banners, board floor. */
+  karate: function (ctx, P) {
+    sky(ctx, [[0, "#241a4a"], [0.55, "#1a1336"], [1, "#120d26"]]);
+    for (var i = 0; i < 7; i++) {
+      var x = 8 + i * 35;
+      P.rect(x, 6, 28, 38, "#3a2f66");
+      P.rect(x + 2, 8, 24, 34, "#f0d89a");
+      P.rect(x + 2, 8, 24, 14, "#fbe9be");
+      for (var v = 1; v < 3; v++) P.rect(x + 2 + v * 8, 8, 1, 34, "#3a2f66");
+      for (var h = 1; h < 3; h++) P.rect(x + 2, 8 + h * 11, 24, 1, "#3a2f66");
+      P.rect(x, 6, 28, 2, "#120d26");
+    }
+    crowdRows(ctx, 44, ["#1b1430", "#241a3e", "#150f26"], 2, 7);
+    [10, W - 24].forEach(function (bx) {
+      P.rect(bx, 0, 14, 36, "#7a1f2a");
+      P.rect(bx, 0, 14, 2, "#c8a24a");
+      P.rect(bx + 1, 2, 12, 32, "#a02a36");
+      P.rect(bx + 4, 6, 6, 6, "#f0d89a");
+      P.rect(bx + 4, 16, 6, 6, "#f0d89a");
+      P.rect(bx + 4, 26, 6, 4, "#f0d89a");
+    });
+    floorFlat(ctx, P, "#5a3b28", "#301d16", "#8a6340", "#2a1a12");
+    for (var b = 0; b < 9; b++) {
+      ctx.fillStyle = "rgba(20,10,8,.45)";
+      ctx.fillRect(b * 30 - 10, GROUND - 5, 1, H - GROUND + 5);
+    }
+  },
+
+  /* A federation training hall: wall bars, flags, green tatami. */
+  judo: function (ctx, P) {
+    sky(ctx, [[0, "#2b3a52"], [0.6, "#1e2a3e"], [1, "#16202f"]]);
+    /* wall bars */
+    for (var x = 6; x < W - 6; x += 26) {
+      P.rect(x, 8, 3, 40, "#7d6a4e");
+      P.rect(x + 22, 8, 3, 40, "#7d6a4e");
+      for (var r = 0; r < 6; r++) P.rect(x, 10 + r * 7, 25, 2, "#9b8560");
+    }
+    /* national flags in a row */
+    var flags = ["#c94f3d", "#4a7ab5", "#e6e2d4", "#d9a441", "#5fd97a", "#b273ff"];
+    for (var f = 0; f < flags.length; f++) {
+      var fx = 14 + f * 40;
+      P.rect(fx, 2, 2, 16, "#4b5568");
+      P.rect(fx + 2, 3, 16, 10, flags[f]);
+      P.rect(fx + 2, 3, 16, 3, "rgba(255,255,255,.28)");
+    }
+    crowdRows(ctx, 44, ["#1a2334", "#232f45", "#141b28"], 2, 31);
+    /* tatami: alternating panels with a contrast border */
+    floorFlat(ctx, P, "#4e7a52", "#2c4630", "#7fae6a", "#1c2e1f");
+    for (var t = 0; t < 7; t++) {
+      P.rect(t * 38 - 6, GROUND - 5, 1, H - GROUND + 5, "rgba(10,24,12,.5)");
+    }
+    P.rect(0, GROUND + 8, W, 2, "#c4413a");
+  },
+
+  /* A boxing gym: brick, hanging lamps, ropes across the front. */
+  boxing: function (ctx, P) {
+    sky(ctx, [[0, "#2a2028"], [0.6, "#1d161d"], [1, "#150f15"]]);
+    /* brickwork, every other course offset by half a brick */
+    for (var row = 0, y = 4; y < 52; y += 6, row++) {
+      for (var x = row % 2 ? -9 : 0; x < W; x += 18) {
+        P.rect(x + 1, y + 1, 16, 4, "#3d2a28");
+        P.rect(x + 1, y + 1, 16, 1, "#4d3733");
+      }
+    }
+    /* two hanging lamps with cones of light */
+    [70, W - 70].forEach(function (lx) {
+      P.rect(lx - 1, 0, 2, 10, "#4a4048");
+      P.rect(lx - 7, 10, 14, 5, "#57505c");
+      P.rect(lx - 5, 15, 10, 2, "#ffe9a8");
+      var cone = ctx.createLinearGradient(0, 16, 0, GROUND);
+      cone.addColorStop(0, "rgba(255,228,150,.22)");
+      cone.addColorStop(1, "rgba(255,228,150,0)");
+      ctx.fillStyle = cone;
+      ctx.beginPath();
+      ctx.moveTo(lx - 5, 16); ctx.lineTo(lx + 5, 16);
+      ctx.lineTo(lx + 30, GROUND); ctx.lineTo(lx - 30, GROUND);
+      ctx.closePath(); ctx.fill();
+    });
+    crowdRows(ctx, 46, ["#241a20", "#2e2129", "#1a1218"], 2, 53);
+    floorFlat(ctx, P, "#6d7a86", "#3a434d", "#98a4ae", "#242a31");
+    ropes(ctx, P, ["#d9d2c4", "#c94f3d", "#d9d2c4"]);
+  },
+
+  /* Bangkok, late: corrugated roof, string lights, warm haze. */
+  muaythai: function (ctx, P) {
+    sky(ctx, [[0, "#3a2418"], [0.5, "#241a1c"], [1, "#171018"]]);
+    /* corrugated roof beams */
+    for (var x = 0; x < W; x += 8) P.rect(x, 0, 4, 12, "#4a3526");
+    P.rect(0, 12, W, 2, "#2a1d16");
+    /* strings of bulbs sagging between posts */
+    for (var i = 0; i < 26; i++) {
+      var bx = 4 + i * 10;
+      var by = 18 + Math.round(Math.sin(i * 0.5) * 3);
+      P.rect(bx, by, 2, 2, i % 2 ? "#ffd98a" : "#ffb45c");
+      ctx.fillStyle = "rgba(255,200,120,.16)";
+      ctx.fillRect(bx - 2, by - 2, 6, 6);
+    }
+    crowdRows(ctx, 42, ["#2b1c18", "#382320", "#1f1414"], 3, 91);
+    floorFlat(ctx, P, "#8a6a4a", "#4a3524", "#b89268", "#2e2016");
+    ropes(ctx, P, ["#e8c07a", "#c94f3d", "#e8c07a"]);
+    /* warm haze over the whole hall */
+    ctx.fillStyle = "rgba(255,170,90,.07)";
+    ctx.fillRect(0, 0, W, H);
+  },
+
+  /* A competition floor: flags, a scoreboard, blue and red mats. */
+  taekwondo: function (ctx, P) {
+    sky(ctx, [[0, "#1e3350"], [0.6, "#16263c"], [1, "#101b2c"]]);
+    /* scoreboard */
+    P.rect(W / 2 - 34, 4, 68, 24, "#0d1521");
+    P.rect(W / 2 - 32, 6, 64, 20, "#16243a");
+    for (var d = 0; d < 4; d++) P.rect(W / 2 - 26 + d * 15, 10, 9, 12, "#3fd9a4");
+    P.rect(W / 2 - 34, 4, 68, 2, "#4f9cff");
+    /* flags along the back */
+    for (var f = 0; f < 8; f++) {
+      var fx = 6 + f * 32;
+      if (Math.abs(fx - W / 2) < 40) continue;
+      P.rect(fx, 6, 2, 20, "#3d4a5c");
+      P.rect(fx + 2, 7, 14, 9, "#e8eef5");
+      P.rect(fx + 6, 9, 6, 5, "#c94f3d");
+    }
+    crowdRows(ctx, 42, ["#182740", "#20334f", "#121d30"], 3, 17);
+    floorFlat(ctx, P, "#2f6fb5", "#1b4171", "#5f9fe0", "#14304f");
+    /* the contest square, red inside blue */
+    P.rect(24, GROUND - 4, W - 48, 2, "#c94f3d");
+    P.rect(24, H - 4, W - 48, 2, "#c94f3d");
+  },
+
+  /* An academy above the beach, late in the day. */
+  bjj: function (ctx, P) {
+    sky(ctx, [[0, "#f0885a"], [0.35, "#d65f6b"], [0.7, "#7a3f72"], [1, "#3d2a52"]]);
+    /* low sun and sea */
+    ctx.fillStyle = "#ffe08a";
+    for (var y = -7; y <= 7; y++) {
+      var half = Math.floor(Math.sqrt(49 - y * y));
+      ctx.fillRect(W / 2 - half + 40, 26 + y, half * 2, 1);
+    }
+    P.rect(0, 40, W, 12, "#4a3f7a");
+    for (var s = 0; s < 5; s++) P.rect(0, 41 + s * 3, W, 1, "rgba(255,200,140,.18)");
+    /* palm silhouettes */
+    [22, 58, W - 34, W - 68].forEach(function (px, i) {
+      var top = 14 + (i % 2) * 6;
+      P.rect(px, top, 3, 40 - top + 12, "#241a2e");
+      for (var a = -2; a <= 2; a++) {
+        if (!a) continue;
+        for (var d2 = 0; d2 < 12; d2++) {
+          P.rect(px + a * d2, top + Math.round(d2 * d2 * 0.055) - 1, 2, 2, "#241a2e");
+        }
+      }
+    });
+    crowdRows(ctx, 46, ["#2e2140", "#3a2a4e", "#221830"], 2, 61);
+    floorFlat(ctx, P, "#7a5f8e", "#42304f", "#a98cbc", "#2a1e33");
+    P.rect(0, GROUND + 4, W, 1, "rgba(255,200,140,.18)");
+  },
+
+  /* A cage in a dark arena, lit from directly above. */
+  mma: function (ctx, P) {
+    sky(ctx, [[0, "#14121c"], [0.6, "#0e0c14"], [1, "#0a0810"]]);
+    /* overhead spotlights */
+    [50, W / 2, W - 50].forEach(function (lx) {
+      var cone = ctx.createLinearGradient(0, 0, 0, GROUND);
+      cone.addColorStop(0, "rgba(200,215,255,.18)");
+      cone.addColorStop(1, "rgba(200,215,255,0)");
+      ctx.fillStyle = cone;
+      ctx.beginPath();
+      ctx.moveTo(lx - 4, 0); ctx.lineTo(lx + 4, 0);
+      ctx.lineTo(lx + 34, GROUND); ctx.lineTo(lx - 34, GROUND);
+      ctx.closePath(); ctx.fill();
+      P.rect(lx - 5, 0, 10, 3, "#8f9bb5");
+    });
+    crowdRows(ctx, 40, ["#16141f", "#1d1a28", "#100e17"], 3, 101);
+    floorFlat(ctx, P, "#5d6470", "#31363f", "#868e9c", "#1e2229");
+    /* chainlink: two crossing diagonal families, stepped a pixel at a
+       time so the mesh stays hard-edged instead of antialiasing */
+    ctx.fillStyle = "rgba(190,200,215,.30)";
+    for (var k = -H; k < W + H; k += 9) {
+      for (var d = 0; d < H; d++) {
+        ctx.fillRect(k + d, 8 + d, 1, 1);
+        ctx.fillRect(k + d, 8 + H - d, 1, 1);
+      }
+    }
+    P.rect(0, 6, W, 3, "#454c58");
+    P.rect(0, GROUND - 2, W, 3, "#454c58");
+  }
+};
+
+var BG_CACHE = {};
+
+function buildBackdrop(theme) {
+  var key = BACKDROPS[theme] ? theme : "mma";
+  if (BG_CACHE[key]) return BG_CACHE[key];
+  var cv = document.createElement("canvas");
+  cv.width = W; cv.height = H;
+  var ctx = cv.getContext("2d");
+  ctx.imageSmoothingEnabled = false;
+  try { BACKDROPS[key](ctx, new Painter(ctx)); }
+  catch (e) { ctx.fillStyle = "#1a1336"; ctx.fillRect(0, 0, W, H); }
+  BG_CACHE[key] = cv;
   return cv;
 }
 
@@ -4079,14 +4786,45 @@ Stage.mount = function () {
   this.ctx = cv.getContext("2d");
   this.ctx.imageSmoothingEnabled = false;
   this.P = new Painter(this.ctx);
-  this.bg = buildBackdrop();
+  this.bg = buildBackdrop(this.theme || "karate");
+
+  /* Let the arena be folded away. On a short screen the cards matter
+     more than the fighters, and that should be the player's call. */
+  var hidden = false;
+  try { hidden = localStorage.getItem("motw-stage-hidden") === "1"; } catch (e) {}
+  var tog = document.createElement("button");
+  tog.id = "stagetoggle";
+  var self = this;
+  function paint() {
+    arena.classList.toggle("stage-hidden", hidden);
+    tog.textContent = hidden ? "show arena" : "hide arena";
+    self.visible = !hidden;
+  }
+  tog.onclick = function () {
+    hidden = !hidden;
+    try { localStorage.setItem("motw-stage-hidden", hidden ? "1" : "0"); } catch (e) {}
+    paint();
+  };
+  arena.insertBefore(tog, arena.firstChild);
+  paint();
   return true;
 };
 
-Stage.setFighters = function (a0, a1) {
-  this.fighters[0] = new Fighter(1, a0);
-  this.fighters[1] = new Fighter(-1, a1);
+Stage.setTheme = function (theme) {
+  this.theme = BACKDROPS[theme] ? theme : "mma";
+  if (this.cv) this.bg = buildBackdrop(this.theme);
+};
+
+Stage.setFighters = function (a0, a1, theme) {
+  /* only swap when they would otherwise be identical, so a normal fight
+     keeps each art's canonical colours */
+  var mirror = a0 === a1;
+  this.mirror = mirror;
+  this.fighters[0] = new Fighter(1, a0, 0);
+  this.fighters[1] = new Fighter(-1, a1, mirror ? 1 : 0);
   this.sparks.length = 0;
+  this.freeze = 0;
+  if (theme) this.setTheme(theme);
   this.layout("far", null);
 };
 
@@ -4123,6 +4861,7 @@ Stage.hit = function (idx, power) {
   this.spark(idx, power >= 5 ? "big" : "hit");
   this.shake = Math.min(7, 2 + power * 0.6);
   this.flash = power >= 5 ? 0.5 : 0.22;
+  this.freeze = Math.min(110, 22 + power * 12);
 };
 
 Stage.showBanner = function (text) {
@@ -4130,7 +4869,21 @@ Stage.showBanner = function (text) {
 };
 
 Stage.frame = function (now) {
-  var dt = 1 / 60;
+  if (this.visible === false) return;      /* folded away: don't burn cycles */
+
+  /* real elapsed time, clamped so a background tab doesn't teleport
+     everything on the first frame back */
+  var dt = this.last ? Math.min(0.05, (now - this.last) / 1000) : 1 / 60;
+  this.last = now;
+
+  /* hit stop: hold the frame on a heavy landing. Two or three frames of
+     nothing moving is most of what makes an impact feel heavy. */
+  var frozen = false;
+  if (this.freeze > 0) {
+    this.freeze -= dt * 1000;
+    frozen = true;
+  }
+
   var ctx = this.ctx, P = this.P;
   ctx.save();
 
@@ -4138,7 +4891,7 @@ Stage.frame = function (now) {
   if (this.shake > 0.4) {
     sx = (Math.random() - 0.5) * this.shake * 2;
     sy = (Math.random() - 0.5) * this.shake;
-    this.shake *= 0.8;
+    if (!frozen) this.shake *= Math.pow(0.8, dt * 60);
   }
   ctx.setTransform(1, 0, 0, 1, Math.round(sx), Math.round(sy));
   ctx.drawImage(this.bg, 0, 0);
@@ -4149,34 +4902,34 @@ Stage.frame = function (now) {
   for (var i = 0; i < order.length; i++) {
     var f = this.fighters[order[i]];
     if (!f) continue;
-    f.update(dt, now);
+    if (!frozen) f.update(dt, now);
     f.draw(P);
   }
 
   for (var s = this.sparks.length - 1; s >= 0; s--) {
     var sp = this.sparks[s];
     sp.draw(P);
-    sp.t++;
+    if (!frozen) sp.t += dt * 60;
     if (sp.t > sp.life) this.sparks.splice(s, 1);
   }
 
   if (this.flash > 0.01) {
     ctx.fillStyle = "rgba(255,255,255," + this.flash.toFixed(3) + ")";
     ctx.fillRect(-8, -8, W + 16, H + 16);
-    this.flash *= 0.72;
+    if (!frozen) this.flash *= Math.pow(0.72, dt * 60);
   }
 
   if (this.banner) {
     var b = this.banner;
-    b.t++;
+    b.t += dt * 60;
     var k = b.t / b.life;
     var scale = 3;
     var tw = R.textWidth(b.text, scale);
     var slide = k < 0.18 ? (1 - k / 0.18) * -70 : k > 0.82 ? ((k - 0.82) / 0.18) * 70 : 0;
     var alpha = k > 0.82 ? 1 - (k - 0.82) / 0.18 : 1;
     ctx.globalAlpha = Math.max(0, alpha);
-    R.drawText(ctx, b.text, Math.round((W - tw) / 2 + slide) + 2, 36, scale, "#100c1c");
-    R.drawText(ctx, b.text, Math.round((W - tw) / 2 + slide), 34, scale, PAL.goldHi);
+    R.drawText(ctx, b.text, Math.round((W - tw) / 2 + slide) + 2, 4, scale, "#100c1c");
+    R.drawText(ctx, b.text, Math.round((W - tw) / 2 + slide), 2, scale, PAL.goldHi);
     ctx.globalAlpha = 1;
     if (b.t > b.life) this.banner = null;
   }
@@ -4204,21 +4957,25 @@ Stage.stop = function () { this.running = false; };
    handed to CSS as a data URI so the portraits breathe and blink
    wherever the game drops them in with innerHTML.                     */
 
-function bustStrip(artKey) {
+function bustStrip(artKey, variant) {
   var S = 26, frames = 4;
   var cv = document.createElement("canvas");
   cv.width = S * frames; cv.height = S;
   var ctx = cv.getContext("2d");
   ctx.imageSmoothingEnabled = false;
   var P = new Painter(ctx);
-  var pal = paletteFor(artKey);
+  var pal = paletteFor(artKey, variant);
 
   for (var fr = 0; fr < frames; fr++) {
     ctx.save();
     ctx.translate(fr * S, 0);
 
-    /* framed background tinted by the art */
-    var accent = PAL[artKey] || PAL.neutral;
+    /* framed background tinted by the art; the alternate palette takes
+       its frame from the gi instead, so the two portraits differ at a
+       glance and not only in the details */
+    var accent = variant
+      ? (pal.bare ? pal.shorts.base : pal.gi.base)
+      : (PAL[artKey] || PAL.neutral);
     ctx.fillStyle = "#1a1336";
     ctx.fillRect(0, 0, S, S);
     ctx.fillStyle = accent;
@@ -4279,9 +5036,10 @@ function bustStrip(artKey) {
 }
 
 var BUST_CACHE = {};
-function bustFor(key) {
-  if (!BUST_CACHE[key]) BUST_CACHE[key] = bustStrip(key);
-  return BUST_CACHE[key];
+function bustFor(key, variant) {
+  var ck = key + "|" + (variant ? 1 : 0);
+  if (!BUST_CACHE[ck]) BUST_CACHE[ck] = bustStrip(key, variant ? 1 : 0);
+  return BUST_CACHE[ck];
 }
 
 R.sprites = {
@@ -4393,31 +5151,38 @@ function artOf(f) {
    Map a card onto a pose and a sound. The game exposes isKick(), so
    striking cards split into hands and legs the same way the rules do. */
 function poseForCard(c) {
-  if (!c) return { pose: "jab", sfx: "punch", lunge: 4, power: 3 };
+  if (!c) return { act: "jab", sfx: "punch", power: 3 };
   var kick = typeof window.isKick === "function" ? safe(function () { return window.isKick(c); }) : false;
   var dmg = c.dmg || 0;
+  /* heavier techniques play their track slightly slower */
+  var weight = 1 + Math.min(0.35, dmg * 0.045);
 
   switch (c.type) {
     case "strike":
       if (kick) {
-        if (/low|leg|calf|teep|push/i.test(c.name)) return { pose: "lowkick", sfx: "kick", lunge: 5, power: dmg };
-        if (/knee|clinch/i.test(c.name)) return { pose: "knee", sfx: "kick", lunge: 6, power: dmg };
-        return { pose: "highkick", sfx: "kick", lunge: 6, power: dmg };
+        if (/low|leg|calf|teep|push/i.test(c.name))
+          return { act: "lowkick", sfx: "kick", power: dmg, scale: weight };
+        if (/knee|clinch/i.test(c.name))
+          return { act: "knee", sfx: "kick", power: dmg, scale: weight };
+        return { act: "highkick", sfx: "kick", power: dmg, scale: weight };
       }
-      if (/upper/i.test(c.name)) return { pose: "uppercut", sfx: "punch", lunge: 4, power: dmg };
-      if (/hook|elbow/i.test(c.name)) return { pose: "hook", sfx: "punch", lunge: 4, power: dmg };
-      if (dmg >= 4) return { pose: "cross", sfx: "punch", lunge: 6, power: dmg };
-      return { pose: "jab", sfx: "punch", lunge: 4, power: dmg };
+      if (/upper/i.test(c.name))
+        return { act: "uppercut", sfx: "punch", power: dmg, scale: weight };
+      if (/hook|elbow/i.test(c.name))
+        return { act: "hook", sfx: "punch", power: dmg, scale: weight };
+      if (dmg >= 4)
+        return { act: "cross", sfx: "punch", power: dmg, scale: weight };
+      return { act: "jab", sfx: "punch", power: dmg, scale: weight };
     case "guard":
-      return { pose: "block", sfx: "guard", lunge: 0 };
+      return { act: "block", sfx: "guard" };
     case "move":
-      return { pose: "idle", sfx: "move", lunge: 0 };
+      return { act: null, sfx: "move" };       /* movement is the stage's job */
     case "grapple":
-      return { pose: "grapple", sfx: "throw", lunge: 7, power: dmg };
+      return { act: "grapple", sfx: "throw", power: dmg, scale: 1.15 };
     case "sub":
-      return { pose: "groundTop", sfx: "sub", lunge: 0, power: dmg };
+      return { act: "sub", sfx: "sub", power: dmg };
     default:
-      return { pose: "guard", sfx: "card", lunge: 0 };
+      return { act: null, sfx: "card" };
   }
 }
 
@@ -4425,19 +5190,40 @@ function poseForCard(c) {
 
 /* Capture the fighters before the original body runs, because it calls
    render() on its way out and the render hook needs them already set. */
+/* Whose stage is it? In a fight against the AI, the opponent's: that is
+   the convention every arcade fighter uses and it makes the roster feel
+   like a roster. In pass-and-play there is no away fighter, so player
+   one's art sets the stage and the music. */
+function themeArt() {
+  if (GAME.p1 && !GAME.p1.human) return artOf(GAME.p1);
+  return artOf(GAME.p0);
+}
+
 wrap("startDuel", function (args) {
   GAME.p0 = args[0];
   GAME.p1 = args[1];
   Stage.mount();
   if (!Stage.cv) return;
-  Stage.setFighters(artOf(GAME.p0), artOf(GAME.p1));
+  Stage.setFighters(artOf(GAME.p0), artOf(GAME.p1), themeArt());
   Stage.start();
 }, function () {
   installGhostBars();
+  /* the game has just written both portraits; in a mirror match repaint
+     the lower one in the alternate colours so the HUD agrees with the
+     sprites */
+  if (Stage.mirror) {
+    var pic = document.getElementById("pico-1");
+    if (pic) {
+      pic.innerHTML = '<span class="bust" style="background-image:url(' +
+        R.sprites.bustFor(artOf(GAME.p1), 1) + ')"></span>';
+    }
+  }
   if (AUD) {
     AUD.unlock();
     AUD.sfx("bell");
-    setTimeout(function () { AUD.play(AUD.music.battle); }, 700);
+    AUD.crowd.start();
+    var theme = AUD.themeFor(themeArt());
+    setTimeout(function () { AUD.play(theme); }, 700);
   }
 });
 
@@ -4473,11 +5259,11 @@ wrap("playCard", function (args) {
   var c = CARDDB ? CARDDB[id] : null;
   var info = poseForCard(c);
   var fighter = Stage.fighters[me];
-  if (fighter) fighter.act(info.pose, info.pose === "groundTop" ? 500 : 380, info.lunge);
+  if (fighter && info.act) fighter.act(info.act, info.scale || 1);
   if (AUD) {
     AUD.sfx("card");
-    /* the impact sound lands with the limb, not with the card click */
-    setTimeout(function () { AUD.sfx(info.sfx, info.power || 3); }, 120);
+    /* the technique sound lands as the limb extends, not on the click */
+    setTimeout(function () { AUD.sfx(info.sfx, info.power || 3); }, 150);
   }
   return { me: me, info: info };
 });
@@ -4498,15 +5284,19 @@ wrap("applyDamage", function (args) {
     safe(function () {
       if (lost > 0) {
         Stage.hit(idx, lost);
-        if (AUD) AUD.sfx(lost >= 5 ? "punch" : "spark", lost);
+        if (AUD) {
+          AUD.sfx(lost >= 5 ? "punch" : "spark", lost);
+          /* the crowd only reacts to something worth reacting to */
+          if (lost >= 4) AUD.crowd.cheer(lost);
+        }
       } else if (ctx.guardBefore > 0) {
         var f = Stage.fighters[idx];
-        if (f) f.act("block", 260, 0);
+        if (f) f.act("block");
         Stage.spark(idx, "hit");
         if (AUD) AUD.sfx("block");
       }
     });
-  }, 130);
+  }, 165);
 });
 
 wrap("showResult", function (args) {
@@ -4533,16 +5323,22 @@ wrap("showResult", function (args) {
   if (AUD) {
     AUD.stop();
     AUD.sfx(/TAP|SUB/.test(txt) ? "tap" : "ko");
+    AUD.crowd.cheer(9);
     setTimeout(function () {
       AUD.play(winner && winner.human ? AUD.music.win : AUD.music.lose);
     }, 900);
+    /* let the hall empty out behind the result screen */
+    setTimeout(function () { AUD.crowd.stop(); }, 4200);
   }
 });
 
 wrap("showMenu", null, function () {
   Stage.stop();
   GAME.p0 = GAME.p1 = null;
-  if (AUD) AUD.play(AUD.music.menu);
+  if (AUD) {
+    AUD.crowd.stop();
+    AUD.play(AUD.music.menu);
+  }
 });
 
 /* ---------------------------------------------------------------- ghost bars
@@ -4574,32 +5370,43 @@ function syncGhostBars() {
    split at the space nearest the middle so "Masters of the Way" reads as
    a two-line arcade logo rather than one thin strip.                   */
 
+/* No drop shadow on titles: at this size the offset copy reads as a
+   blur rather than as depth. A hard outline alone keeps the edges
+   crisp. Where a title splits over two lines the SECOND line is the
+   payoff, so it gets the larger size and the gold. */
+function titleLines(raw) {
+  if (raw.length <= 12 || raw.indexOf(" ") < 0)
+    return [{ t: raw, scale: 6, fill: PAL.goldHi }];
+
+  /* prefer a break that leaves a short, punchy second line */
+  var words = raw.split(" "), best = words.length - 1;
+  if (words.length > 2) best = words.length - 2;
+  var top = words.slice(0, best).join(" ");
+  var bottom = words.slice(best).join(" ");
+
+  return [
+    { t: top, scale: 4, fill: PAL.ink },
+    { t: bottom, scale: 9, fill: PAL.goldHi }
+  ];
+}
+
 function pixelTitle(h1) {
   if (!h1 || h1.dataset.pixdone) return;
   var raw = (h1.textContent || "").trim().toUpperCase();
   if (!raw) return;
 
-  var lines = [raw];
-  if (raw.length > 12 && raw.indexOf(" ") > 0) {
-    var mid = raw.length / 2, best = -1;
-    for (var i = 0; i < raw.length; i++) {
-      if (raw[i] !== " ") continue;
-      if (best < 0 || Math.abs(i - mid) < Math.abs(best - mid)) best = i;
-    }
-    if (best > 0) lines = [raw.slice(0, best), raw.slice(best + 1)];
-  }
-
   var box = document.createElement("div");
   box.className = "pixlogo";
-  box.style.cssText = "text-align:center;margin:26px 0 4px;line-height:0";
-  lines.forEach(function (ln, i) {
-    var scale = lines.length > 1 && i === 1 ? 4 : 6;
-    var cv = R.textCanvas(ln, scale,
-      i === 0 ? PAL.goldHi : PAL.ink,
-      i === 0 ? PAL.goldLo : PAL.panelLo, "#100c1c");
-    cv.style.cssText = "max-width:92vw;height:auto;display:block;margin:0 auto";
+  box.style.cssText = "text-align:center;margin:24px 0 6px;line-height:0";
+
+  titleLines(raw).forEach(function (ln, i) {
+    var cv = R.textCanvas(ln.t, ln.scale, ln.fill, null, "#100c1c");
+    cv.style.cssText =
+      "max-width:94vw;height:auto;display:block;margin:" +
+      (i ? "-2px" : "0") + " auto 0";
     box.appendChild(cv);
   });
+
   h1.parentNode.insertBefore(box, h1);
   /* set last: if anything above threw, the plain h1 stays visible */
   h1.dataset.pixdone = "1";
@@ -4620,10 +5427,16 @@ if (appEl && window.MutationObserver) {
 
 /* ---------------------------------------------------------------- ui sounds */
 
-document.addEventListener("pointerover", function (e) {
-  var t = e.target.closest && e.target.closest(".menu-btn,.fighter-card,.card.playable,.cnt-btn");
-  if (t && AUD) AUD.sfx("hover");
-}, true);
+/* Only on devices with a real pointer. On a touchscreen "hover" fires on
+   the same tap as the click, which doubles every menu sound. */
+var HAS_HOVER = !window.matchMedia || matchMedia("(hover: hover)").matches;
+
+if (HAS_HOVER) {
+  document.addEventListener("pointerover", function (e) {
+    var t = e.target.closest && e.target.closest(".menu-btn,.fighter-card,.card.playable,.cnt-btn");
+    if (t && AUD) AUD.sfx("hover");
+  }, true);
+}
 
 document.addEventListener("click", function (e) {
   var t = e.target.closest && e.target.closest(".menu-btn,.fighter-card,.back,#endturn,.cnt-btn");
@@ -4653,9 +5466,14 @@ Stage.mount();
 
 window.addEventListener("pointerdown", function once() {
   window.removeEventListener("pointerdown", once);
+  if (!AUD) return;
   var duel = document.getElementById("duel");
-  var inDuel = duel && duel.style.display === "block";
-  if (AUD) AUD.play(inDuel ? AUD.music.battle : AUD.music.menu);
+  if (duel && duel.style.display === "block") {
+    AUD.play(AUD.themeFor(themeArt()));
+    AUD.crowd.start();
+  } else {
+    AUD.play(AUD.music.menu);
+  }
 });
 
 })();
@@ -4677,10 +5495,11 @@ if (!R || !R.sprites) return;
 var Stage = R.sprites.Stage, AUD = R.audio, PAL = R.PAL;
 
 var ARTS = ["boxing", "karate", "taekwondo", "muaythai", "judo", "bjj", "mma"];
-var POSES = ["idle", "guard", "jab", "cross", "hook", "uppercut", "highkick",
-             "lowkick", "knee", "grapple", "block", "hit", "groundTop", "groundBottom", "ko"];
+var ACTS = ["jab", "cross", "hook", "uppercut", "highkick", "lowkick",
+            "knee", "grapple", "block", "hit", "sub"];
+var STANCES = ["idle", "guard", "groundTop", "groundBottom", "ko"];
 var SFXS = ["punch", "kick", "block", "guard", "throw", "sub", "tap",
-            "card", "move", "bell", "ko", "select", "hover", "spark"];
+            "card", "move", "bell", "ko", "select", "spark"];
 
 var wrap = document.createElement("div");
 wrap.className = "screen";
@@ -4688,21 +5507,26 @@ wrap.innerHTML =
   '<div id="pv-logo" style="text-align:center;margin:18px 0 10px;line-height:0"></div>' +
   '<p class="sub">Retro layer preview &mdash; open <b>index.html</b> for the game itself.</p>' +
   '<div id="arena"><div id="pv-note" style="font-size:13px;color:' + PAL.dim + '"></div></div>' +
-  '<h2>Stance and technique</h2><div id="pv-poses"></div>' +
-  '<h2>Fighters</h2><div id="pv-arts"></div>' +
+  '<h2>Technique</h2><div id="pv-acts"></div>' +
+  '<h2>Stance and range</h2><div id="pv-stances"></div>' +
+  '<h2>Fighter</h2><div id="pv-arts"></div>' +
+  '<h2>Mirror match (alternate colours)</h2><div id="pv-mirror"></div>' +
+  '<h2>Stage</h2><div id="pv-stages"></div>' +
+  '<h2>Theme</h2><div id="pv-music"></div>' +
+  '<h2>Crowd</h2><div id="pv-crowd"></div>' +
   '<h2>Sound effects</h2><div id="pv-sfx"></div>' +
-  '<h2>Music</h2><div id="pv-music"></div>' +
   '<h2>Portraits</h2><div id="pv-busts" style="display:flex;gap:12px;flex-wrap:wrap;justify-content:center"></div>';
 document.body.appendChild(wrap);
 
 var logo = document.getElementById("pv-logo");
-var a = R.textCanvas("MASTERS", 6, PAL.goldHi, PAL.goldLo, "#100c1c");
-var b = R.textCanvas("OF THE WAY", 4, PAL.ink, PAL.panelLo, "#100c1c");
-a.style.cssText = b.style.cssText = "max-width:92vw;height:auto;display:block;margin:0 auto";
+var a = R.textCanvas("MASTERS OF", 4, PAL.ink, null, "#100c1c");
+var b = R.textCanvas("THE WAY", 9, PAL.goldHi, null, "#100c1c");
+a.style.cssText = "max-width:94vw;height:auto;display:block;margin:0 auto";
+b.style.cssText = "max-width:94vw;height:auto;display:block;margin:-2px auto 0";
 logo.appendChild(a); logo.appendChild(b);
 
 Stage.mount();
-Stage.setFighters("karate", "muaythai");
+Stage.setFighters("karate", "muaythai", "karate");
 Stage.start();
 Stage.showBanner("Fight");
 
@@ -4722,45 +5546,90 @@ function row(host, items, fn, label) {
   });
 }
 
-var range = "far";
-row("pv-poses", POSES, function (p) {
+/* Techniques: pick a plausible range, throw it, and land it so the
+   contact timing can be judged the way it will look in a real duel. */
+var CLOSE = /jab|cross|hook|uppercut|knee|grapple/;
+var LANDS = /jab|cross|hook|uppercut|kick|knee|grapple|sub/;
+
+row("pv-acts", ACTS, function (a) {
+  var f0 = Stage.fighters[0];
+  if (a === "sub") {
+    Stage.layout("ground", 0);
+  } else {
+    Stage.layout(CLOSE.test(a) ? "close" : "far", null);
+  }
+  AUD.unlock();
+  f0.act(a);
+  if (LANDS.test(a)) {
+    var power = /highkick|uppercut|grapple/.test(a) ? 6 : 3;
+    AUD.sfx(/kick|knee/.test(a) ? "kick" : a === "grapple" ? "throw" : "punch", power);
+    setTimeout(function () {
+      Stage.hit(1, power);
+      if (power >= 4) AUD.crowd.cheer(power);
+    }, 175);
+  }
+});
+
+row("pv-stances", STANCES, function (p) {
   var f0 = Stage.fighters[0], f1 = Stage.fighters[1];
+  f0.action = f1.action = null;
   if (p === "groundTop" || p === "groundBottom" || p === "ko") {
     Stage.layout("ground", 0);
-    f0.setBase(p === "groundBottom" ? "groundBottom" : "groundTop");
-    f1.setBase(p === "ko" ? "ko" : (p === "groundBottom" ? "groundTop" : "groundBottom"));
+    f0.setBase(p === "ko" ? "ko" : p);
+    f1.setBase(p === "groundTop" ? "groundBottom" : "groundTop");
   } else {
-    range = (p === "jab" || p === "cross" || p === "hook" || p === "uppercut" || p === "knee")
-      ? "close" : "far";
-    Stage.layout(range, null);
-    f0.act(p, 900, /kick|jab|cross|hook|upper|knee|grapple/.test(p) ? 6 : 0);
-    if (/kick|jab|cross|hook|upper|knee|grapple/.test(p)) {
-      setTimeout(function () { Stage.hit(1, p === "highkick" ? 6 : 3); }, 140);
-    }
+    Stage.layout(p === "guard" ? "close" : "far", null);
+    f0.setBase(p); f1.setBase(p);
   }
 });
 
 row("pv-arts", ARTS, function (art) {
   Stage.setFighters(art, Stage.fighters[1].art);
-  Stage.layout("far", null);
   Stage.showBanner(art);
 });
 
-row("pv-sfx", SFXS, function (s) { AUD.unlock(); AUD.sfx(s, 6); });
-
-row("pv-music", ["menu", "battle", "win", "lose", "stop"], function (m) {
-  AUD.unlock();
-  if (m === "stop") AUD.stop(); else AUD.play(AUD.music[m]);
+/* Mirror matches: same art on both sides, so the palette swap is
+   visible next to the original rather than from memory. */
+row("pv-mirror", ARTS, function (art) {
+  Stage.setFighters(art, art, art);
+  Stage.showBanner(art + " mirror");
 });
+
+row("pv-stages", ARTS, function (art) {
+  Stage.setTheme(art);
+  Stage.showBanner(art);
+});
+
+row("pv-music", ARTS.concat(["menu", "win", "lose", "stop"]), function (m) {
+  AUD.unlock();
+  if (m === "stop") AUD.stop();
+  else if (AUD.music[m]) AUD.play(AUD.music[m]);
+  else AUD.play(AUD.themeFor(m));
+});
+
+row("pv-crowd", ["start", "cheer", "roar", "stop"], function (c) {
+  AUD.unlock();
+  if (c === "start") AUD.crowd.start();
+  else if (c === "stop") AUD.crowd.stop();
+  else AUD.crowd.cheer(c === "roar" ? 9 : 4);
+});
+
+row("pv-sfx", SFXS, function (s) { AUD.unlock(); AUD.sfx(s, 6); });
 
 var busts = document.getElementById("pv-busts");
 ARTS.forEach(function (art) {
   var cell = document.createElement("div");
   cell.style.cssText = "text-align:center;font-size:11px;text-transform:uppercase;color:" + PAL.dim;
-  var pic = document.createElement("span");
-  pic.style.cssText = "display:block;width:78px;height:78px;margin-bottom:4px";
-  pic.innerHTML = '<span class="bust" style="background-image:url(' + R.sprites.bustFor(art) + ')"></span>';
-  cell.appendChild(pic);
+  var pair = document.createElement("div");
+  pair.style.cssText = "display:flex;gap:3px";
+  [0, 1].forEach(function (variant) {
+    var pic = document.createElement("span");
+    pic.style.cssText = "display:block;width:62px;height:62px;margin-bottom:4px";
+    pic.innerHTML = '<span class="bust" style="background-image:url(' +
+      R.sprites.bustFor(art, variant) + ')"></span>';
+    pair.appendChild(pic);
+  });
+  cell.appendChild(pair);
   cell.appendChild(document.createTextNode(art));
   busts.appendChild(cell);
 });
