@@ -2858,5 +2858,1918 @@ try { Pad.start(); } catch (e) {}
 if (/[?&]sim=1(&|$)/.test(location.search)) showSimPanel();
 else showMenu();
 </script>
+
+<!-- ================================================================== -->
+<!--  MASTERS OF THE WAY :: 16-BIT RETRO LAYER                          -->
+<!--  It sits on top of the existing game and changes no game logic.    -->
+<!--                                                                    -->
+<!--  Everything is generated in code: no image files, no audio files,  -->
+<!--  no fonts, no network. The single-file build stays single-file.    -->
+<!-- ================================================================== -->
+<script>
+(function () {
+"use strict";
+
+if (window.__MOTW_RETRO__) return;
+window.__MOTW_RETRO__ = true;
+
+/* ================================================================ 1. palette
+
+   A 16-bit console palette. Deeper, more saturated than the original
+   dojo-dark theme, with the hard highlight/shadow pairs that make
+   SNES-era UI read as embossed metal rather than flat CSS.            */
+
+var PAL = {
+  ink:    "#f6f2e2",
+  dim:    "#9d93b8",
+  gold:   "#ffd34d",
+  goldHi: "#fff0a8",
+  goldLo: "#a8720f",
+  red:    "#ef4b32",
+  redLo:  "#7d1a12",
+  green:  "#5fd97a",
+  bg0:    "#0b0913",
+  bg1:    "#171130",
+  panel:  "#241c44",
+  panelHi:"#3d3170",
+  panelLo:"#120d26",
+  edge:   "#080611",
+
+  boxing:    "#ff5f45",
+  karate:    "#ece5cd",
+  judo:      "#4f9cff",
+  bjj:       "#b273ff",
+  muaythai:  "#ffc23d",
+  taekwondo: "#3fd9a4",
+  neutral:   "#a99e88"
+};
+
+/* ================================================================ 2. stylesheet
+
+   Overrides the game's CSS variables, then adds the arcade furniture:
+   bevelled panels, segmented health bars, a CRT scanline veil, and
+   pixel-snapped rendering for every generated image.                  */
+
+var CSS = `
+:root {
+  --bg:${PAL.bg0}; --panel:${PAL.panel}; --panel2:${PAL.bg1};
+  --ink:${PAL.ink}; --dim:${PAL.dim}; --red:${PAL.red};
+  --gold:${PAL.gold}; --border:${PAL.panelHi};
+  --boxing:${PAL.boxing}; --karate:${PAL.karate}; --judo:${PAL.judo};
+  --bjj:${PAL.bjj}; --muaythai:${PAL.muaythai};
+  --taekwondo:${PAL.taekwondo}; --neutral:${PAL.neutral};
+}
+body {
+  font-family: ui-monospace, "Lucida Console", "Courier New", monospace;
+  background:
+    radial-gradient(ellipse at 50% 0%, ${PAL.bg1} 0%, ${PAL.bg0} 70%) fixed;
+  letter-spacing: .3px;
+}
+img, canvas, .bust { image-rendering: pixelated; image-rendering: crisp-edges; }
+
+/* ---- CRT veil: scanlines plus a soft vignette, pointer-transparent ---- */
+#crt {
+  position: fixed; inset: 0; z-index: 9000; pointer-events: none;
+  background:
+    repeating-linear-gradient(to bottom,
+      rgba(0,0,0,.20) 0px, rgba(0,0,0,.20) 1px,
+      rgba(0,0,0,0)   1px, rgba(0,0,0,0)   3px),
+    radial-gradient(ellipse at 50% 50%,
+      rgba(0,0,0,0) 55%, rgba(0,0,0,.42) 100%);
+  mix-blend-mode: multiply;
+}
+#crt.off { display: none; }
+
+/* ---- bevelled arcade panels ---- */
+.fpanel, #arena, .menu-btn, .fighter-card, .logview, .card, #builder-stats {
+  border-radius: 0 !important;
+  border: none !important;
+  box-shadow:
+    inset 2px 2px 0 ${PAL.panelHi},
+    inset -2px -2px 0 ${PAL.panelLo},
+    0 0 0 2px ${PAL.edge};
+  background: ${PAL.panel};
+}
+#arena { background: ${PAL.bg1}; }
+.fpanel.active {
+  box-shadow:
+    inset 2px 2px 0 ${PAL.goldHi},
+    inset -2px -2px 0 ${PAL.goldLo},
+    0 0 0 2px ${PAL.edge},
+    0 0 14px rgba(255,211,77,.35);
+}
+.menu-btn:hover, .fighter-card:hover {
+  transform: none;
+  box-shadow:
+    inset 2px 2px 0 ${PAL.goldHi},
+    inset -2px -2px 0 ${PAL.goldLo},
+    0 0 0 2px ${PAL.edge};
+}
+
+/* ---- headings and buttons: chunky, uppercase, hard drop shadow ---- */
+h1, h2, .art-head, #endturn, .frow .style, .card .cart {
+  font-variant: normal !important;
+  text-transform: uppercase;
+  font-weight: bold;
+}
+/* only hidden once its bitmap replacement is actually in place */
+h1[data-pixdone] { display: none; }
+h2 { letter-spacing: 3px; text-shadow: 2px 2px 0 ${PAL.edge}; }
+#endturn {
+  border-radius: 0; border: none;
+  background: ${PAL.gold}; color: ${PAL.edge};
+  box-shadow:
+    inset 2px 2px 0 ${PAL.goldHi},
+    inset -2px -2px 0 ${PAL.goldLo},
+    0 0 0 2px ${PAL.edge};
+  text-shadow: none; font-weight: bold;
+}
+#endturn:active { box-shadow: inset -2px -2px 0 ${PAL.goldHi}, inset 2px 2px 0 ${PAL.goldLo}, 0 0 0 2px ${PAL.edge}; }
+
+/* ---- arcade health bar: red core, lagging yellow ghost behind ---- */
+.hpbar {
+  border-radius: 0; height: 14px; background: ${PAL.redLo};
+  box-shadow: inset 1px 1px 0 ${PAL.panelLo}, 0 0 0 2px ${PAL.edge};
+  overflow: hidden;
+}
+/* The yellow ghost trails the red bar. For the effect to read, red has
+   to snap and yellow has to lag, so the two transitions differ sharply. */
+.hpghost {
+  position: absolute; left: 0; top: 0; height: 100%;
+  background: ${PAL.gold}; z-index: 0;
+  transition: width .5s ease .25s;
+}
+.hpfill {
+  border-radius: 0; position: relative; z-index: 1;
+  transition: width .1s linear !important;
+  background: linear-gradient(to bottom,
+    #ff8a6a 0%, ${PAL.red} 45%, #b32a1c 100%) !important;
+}
+.hpbar.low .hpfill { animation: hppulse .55s steps(2) infinite; }
+
+/* ---- cards: pixel frames tinted by art ---- */
+.card { border-top: none !important; padding-top: 9px; }
+.card .cname { font-weight: bold; letter-spacing: .5px; }
+.card.playable:hover { transform: translateY(-4px); }
+
+/* ---- range zones as arcade tabs ---- */
+.zone {
+  border-radius: 0; border: none;
+  box-shadow: inset 1px 1px 0 ${PAL.panelHi}, inset -1px -1px 0 ${PAL.panelLo}, 0 0 0 2px ${PAL.edge};
+  background: ${PAL.panel}; text-transform: uppercase; font-variant: normal;
+}
+.zone.on {
+  background: ${PAL.goldLo}; color: ${PAL.goldHi};
+  box-shadow: inset 1px 1px 0 ${PAL.goldHi}, inset -1px -1px 0 ${PAL.edge}, 0 0 0 2px ${PAL.edge};
+}
+
+/* ---- the sprite stage ---- */
+#stage-wrap {
+  position: relative; width: 100%; margin: 0 0 8px;
+  box-shadow: 0 0 0 2px ${PAL.edge}; line-height: 0;
+}
+#stage { width: 100%; height: auto; display: block; }
+
+/* ---- bitmap-rendered banner over the arena ---- */
+#banner { font-size: 0 !important; }
+#banner canvas { max-width: 88vw; height: auto; }
+
+/* ---- animated pixel portraits ---- */
+.bust {
+  display: inline-block; width: 100%; height: 100%;
+  background-repeat: no-repeat; background-size: 400% 100%;
+  animation: bustcycle 1.6s steps(1) infinite;
+}
+@keyframes bustcycle {
+  0%   { background-position:   0% 0; }
+  40%  { background-position:  33.333% 0; }
+  62%  { background-position:  66.667% 0; }
+  80%  { background-position: 100% 0; }
+}
+
+/* ---- sound toggle ---- */
+#sndbtn {
+  position: fixed; right: 10px; bottom: 10px; z-index: 9100;
+  padding: 8px 12px; background: ${PAL.panel}; color: ${PAL.gold};
+  border: none; font: inherit; font-size: 13px; letter-spacing: 1px;
+  box-shadow: inset 2px 2px 0 ${PAL.panelHi}, inset -2px -2px 0 ${PAL.panelLo}, 0 0 0 2px ${PAL.edge};
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bust { animation: none; }
+  #crt { background: none; }
+}
+@media (max-width: 560px) {
+  #sndbtn { padding: 6px 9px; font-size: 11px; }
+}
+`;
+
+var st = document.createElement("style");
+st.id = "retro-css";
+st.textContent = CSS;
+document.head.appendChild(st);
+
+var crt = document.createElement("div");
+crt.id = "crt";
+document.body.appendChild(crt);
+
+/* ================================================================ 3. bitmap font
+
+   A hand-authored 5x7 font. Real pixel type is what sells the era more
+   than anything else, and a webfont would mean a binary asset, so the
+   glyphs are drawn as pixels straight onto a canvas.                   */
+
+var GLYPHS = {
+  "A": ".###./#...#/#...#/#####/#...#/#...#/#...#",
+  "B": "####./#...#/#...#/####./#...#/#...#/####.",
+  "C": ".###./#...#/#..../#..../#..../#...#/.###.",
+  "D": "####./#...#/#...#/#...#/#...#/#...#/####.",
+  "E": "#####/#..../#..../####./#..../#..../#####",
+  "F": "#####/#..../#..../####./#..../#..../#....",
+  "G": ".###./#...#/#..../#.###/#...#/#...#/.###.",
+  "H": "#...#/#...#/#...#/#####/#...#/#...#/#...#",
+  "I": ".###./..#../..#../..#../..#../..#../.###.",
+  "J": "..###/...#./...#./...#./...#./#..#./.##..",
+  "K": "#...#/#..#./#.#../##.../#.#../#..#./#...#",
+  "L": "#..../#..../#..../#..../#..../#..../#####",
+  "M": "#...#/##.##/#.#.#/#.#.#/#...#/#...#/#...#",
+  "N": "#...#/##..#/#.#.#/#..##/#...#/#...#/#...#",
+  "O": ".###./#...#/#...#/#...#/#...#/#...#/.###.",
+  "P": "####./#...#/#...#/####./#..../#..../#....",
+  "Q": ".###./#...#/#...#/#...#/#.#.#/#..#./.##.#",
+  "R": "####./#...#/#...#/####./#.#../#..#./#...#",
+  "S": ".####/#..../#..../.###./....#/....#/####.",
+  "T": "#####/..#../..#../..#../..#../..#../..#..",
+  "U": "#...#/#...#/#...#/#...#/#...#/#...#/.###.",
+  "V": "#...#/#...#/#...#/#...#/#...#/.#.#./..#..",
+  "W": "#...#/#...#/#...#/#.#.#/#.#.#/##.##/#...#",
+  "X": "#...#/#...#/.#.#./..#../.#.#./#...#/#...#",
+  "Y": "#...#/#...#/.#.#./..#../..#../..#../..#..",
+  "Z": "#####/....#/...#./..#../.#.../#..../#####",
+  "0": ".###./#...#/#..##/#.#.#/##..#/#...#/.###.",
+  "1": "..#../.##../..#../..#../..#../..#../.###.",
+  "2": ".###./#...#/....#/...#./..#../.#.../#####",
+  "3": "####./....#/....#/.###./....#/....#/####.",
+  "4": "...#./..##./.#.#./#..#./#####/...#./...#.",
+  "5": "#####/#..../####./....#/....#/#...#/.###.",
+  "6": ".###./#..../#..../####./#...#/#...#/.###.",
+  "7": "#####/....#/...#./..#../.#.../.#.../.#...",
+  "8": ".###./#...#/#...#/.###./#...#/#...#/.###.",
+  "9": ".###./#...#/#...#/.####/....#/....#/.###.",
+  " ": "...../...../...../...../...../...../.....",
+  ".": "...../...../...../...../...../.##../.##..",
+  ",": "...../...../...../...../.##../.##../.#...",
+  "!": "..#../..#../..#../..#../..#../...../..#..",
+  "?": ".###./#...#/....#/...#./..#../...../..#..",
+  "'": "..#../..#../...../...../...../...../.....",
+  "-": "...../...../...../#####/...../...../.....",
+  ":": "...../..#../..#../...../..#../..#../.....",
+  "/": "....#/...#./...#./..#../.#.../.#.../#....",
+  "&": ".##../#..#./#.#../.#.../#.#.#/#..#./.##.#",
+  "(": "..#../.#.../#..../#..../#..../.#.../..#..",
+  ")": "..#../...#./....#/....#/....#/...#./..#..",
+  "+": "...../..#../..#../#####/..#../..#../.....",
+  "*": "...../#...#/.#.#./..#../.#.#./#...#/....."
+};
+
+/* Cache each glyph as a parsed pixel grid the first time it is used. */
+var GCACHE = {};
+function glyph(ch) {
+  ch = ch.toUpperCase();
+  if (GCACHE[ch]) return GCACHE[ch];
+  var src = GLYPHS[ch];
+  if (!src) src = GLYPHS[" "];
+  var g = src.split("/");
+  GCACHE[ch] = g;
+  return g;
+}
+
+/* Measure and draw 5x7 text. `scale` is the pixel size, `track` the gap
+   between characters in source pixels.                                 */
+function textWidth(str, scale, track) {
+  track = track === undefined ? 1 : track;
+  return str.length ? (str.length * (5 + track) - track) * scale : 0;
+}
+
+function drawText(ctx, str, x, y, scale, color, track) {
+  track = track === undefined ? 1 : track;
+  ctx.fillStyle = color;
+  for (var i = 0; i < str.length; i++) {
+    var g = glyph(str[i]);
+    var ox = x + i * (5 + track) * scale;
+    for (var r = 0; r < 7; r++) {
+      var row = g[r] || ".....";
+      for (var c = 0; c < 5; c++) {
+        if (row[c] === "#") ctx.fillRect(ox + c * scale, y + r * scale, scale, scale);
+      }
+    }
+  }
+}
+
+/* Text with a hard offset shadow and an outline: the arcade look. */
+function drawTextFancy(ctx, str, x, y, scale, fill, shadow, outline) {
+  if (outline) {
+    for (var dx = -1; dx <= 1; dx++)
+      for (var dy = -1; dy <= 1; dy++)
+        if (dx || dy) drawText(ctx, str, x + dx * scale, y + dy * scale, scale, outline);
+  }
+  if (shadow) drawText(ctx, str, x + scale * 2, y + scale * 2, scale, shadow);
+  drawText(ctx, str, x, y, scale, fill);
+}
+
+/* Build a standalone canvas containing one line of bitmap text. */
+function textCanvas(str, scale, fill, shadow, outline) {
+  var pad = scale * 3;
+  var cv = document.createElement("canvas");
+  cv.width = Math.ceil(textWidth(str, scale) + pad * 2 + scale * 2);
+  cv.height = 7 * scale + pad * 2 + scale * 2;
+  var ctx = cv.getContext("2d");
+  ctx.imageSmoothingEnabled = false;
+  drawTextFancy(ctx, str, pad, pad, scale, fill, shadow, outline);
+  return cv;
+}
+
+window.MOTW_RETRO = { drawText: drawText, textCanvas: textCanvas, textWidth: textWidth, PAL: PAL };
+
+})();
+</script>
+
+<script>
+/* ================================================================ 4. audio
+
+   A small synth in the spirit of the SNES sound chip: pulse waves with
+   selectable duty for lead and harmony, a triangle for bass, filtered
+   noise for percussion and impacts. Nothing is sampled, so there are no
+   audio files to ship and no licences to clear.                        */
+(function () {
+"use strict";
+
+var A = {
+  ctx: null, master: null, musicGain: null, sfxGain: null,
+  muted: false, song: null, timer: null, step: 0, nextTime: 0, waves: {}
+};
+
+try { A.muted = localStorage.getItem("motw-muted") === "1"; } catch (e) {}
+
+function init() {
+  if (A.ctx) return A.ctx;
+  var C = window.AudioContext || window.webkitAudioContext;
+  if (!C) return null;
+  A.ctx = new C();
+
+  /* Light compression keeps the chip voices glued together and stops
+     a stacked chord from clipping. */
+  var comp = A.ctx.createDynamicsCompressor();
+  comp.threshold.value = -14;
+  comp.ratio.value = 5;
+  comp.attack.value = 0.003;
+  comp.release.value = 0.2;
+
+  A.master = A.ctx.createGain();
+  A.master.gain.value = A.muted ? 0 : 0.5;
+  A.musicGain = A.ctx.createGain();
+  A.musicGain.gain.value = 0.34;
+  A.sfxGain = A.ctx.createGain();
+  A.sfxGain.gain.value = 0.85;
+
+  A.musicGain.connect(A.master);
+  A.sfxGain.connect(A.master);
+  A.master.connect(comp);
+  comp.connect(A.ctx.destination);
+
+  A.noise = makeNoise();
+  return A.ctx;
+}
+
+/* ---- one second of white noise, reused for every percussive sound ---- */
+function makeNoise() {
+  var len = A.ctx.sampleRate;
+  var buf = A.ctx.createBuffer(1, len, A.ctx.sampleRate);
+  var d = buf.getChannelData(0);
+  for (var i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
+  return buf;
+}
+
+/* ---- pulse waves via Fourier series, one per duty cycle ---- */
+function pulseWave(duty) {
+  var key = "p" + duty;
+  if (A.waves[key]) return A.waves[key];
+  var n = 24, real = new Float32Array(n), imag = new Float32Array(n);
+  for (var i = 1; i < n; i++) {
+    /* Fourier coefficients of a rectangular wave of the given duty. */
+    imag[i] = (2 / (i * Math.PI)) * Math.sin(Math.PI * i * duty);
+  }
+  A.waves[key] = A.ctx.createPeriodicWave(real, imag, { disableNormalization: false });
+  return A.waves[key];
+}
+
+var SEMI = { c: 0, d: 2, e: 4, f: 5, g: 7, a: 9, b: 11 };
+function freq(note) {
+  var m = /^([a-g])([#b]?)(-?\d)$/.exec(String(note).toLowerCase());
+  if (!m) return 0;
+  var s = SEMI[m[1]];
+  if (m[2] === "#") s++;
+  if (m[2] === "b") s--;
+  var oct = parseInt(m[3], 10);
+  /* MIDI 69 is A4 = 440Hz; C-1 is MIDI 0. */
+  var midi = (oct + 1) * 12 + s;
+  return 440 * Math.pow(2, (midi - 69) / 12);
+}
+
+/* ---- generic tone with an ADSR-ish envelope ---- */
+function tone(o) {
+  if (!A.ctx) return;
+  var t = o.t !== undefined ? o.t : A.ctx.currentTime;
+  var dur = o.dur || 0.2;
+  var osc = A.ctx.createOscillator();
+  if (o.duty) osc.setPeriodicWave(pulseWave(o.duty));
+  else osc.type = o.type || "triangle";
+  osc.frequency.setValueAtTime(o.f, t);
+  if (o.f2) osc.frequency.exponentialRampToValueAtTime(Math.max(1, o.f2), t + dur);
+
+  var g = A.ctx.createGain();
+  /* exponential ramps cannot reach zero, so keep the peak above it */
+  var peak = Math.max(0.0005, o.gain === undefined ? 0.3 : o.gain);
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.exponentialRampToValueAtTime(peak, t + (o.attack || 0.005));
+  g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+
+  var node = osc;
+  if (o.filter) {
+    var f = A.ctx.createBiquadFilter();
+    f.type = o.filter;
+    f.frequency.setValueAtTime(o.fc || 1200, t);
+    if (o.fc2) f.frequency.exponentialRampToValueAtTime(o.fc2, t + dur);
+    f.Q.value = o.q || 1;
+    osc.connect(f); f.connect(g);
+    node = f;
+  } else {
+    osc.connect(g);
+  }
+  g.connect(o.bus || A.sfxGain);
+  osc.start(t);
+  osc.stop(t + dur + 0.02);
+}
+
+/* ---- filtered noise burst: the basis of every impact ---- */
+function noise(o) {
+  if (!A.ctx) return;
+  var t = o.t !== undefined ? o.t : A.ctx.currentTime;
+  var dur = o.dur || 0.12;
+  var src = A.ctx.createBufferSource();
+  src.buffer = A.noise;
+  src.playbackRate.value = o.rate || 1;
+
+  var f = A.ctx.createBiquadFilter();
+  f.type = o.filter || "bandpass";
+  f.frequency.setValueAtTime(o.fc || 1400, t);
+  if (o.fc2) f.frequency.exponentialRampToValueAtTime(Math.max(40, o.fc2), t + dur);
+  f.Q.value = o.q || 1;
+
+  var g = A.ctx.createGain();
+  var peak = o.gain === undefined ? 0.3 : o.gain;
+  g.gain.setValueAtTime(peak, t);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+
+  src.connect(f); f.connect(g); g.connect(o.bus || A.sfxGain);
+  src.start(t);
+  src.stop(t + dur + 0.02);
+}
+
+/* ================================================================ sound effects
+
+   Each impact is a two-part sound: a noise transient for the slap of
+   contact, and a pitched thump underneath for weight. Bigger hits get
+   a lower, longer thump rather than just a louder one.                 */
+
+var SFX = {
+  punch: function (power) {
+    power = Math.max(1, Math.min(10, power || 3));
+    var w = power / 10;
+    noise({ fc: 2000 - w * 900, fc2: 260, dur: 0.09 + w * 0.05, gain: 0.28 + w * 0.22, q: 0.9 });
+    tone({ type: "sine", f: 190 - w * 60, f2: 44, dur: 0.13 + w * 0.07, gain: 0.34 + w * 0.2 });
+  },
+  kick: function (power) {
+    power = Math.max(1, Math.min(10, power || 4));
+    var w = power / 10;
+    /* a whoosh that arrives before the thud */
+    noise({ filter: "bandpass", fc: 500, fc2: 2600, dur: 0.13, gain: 0.16, q: 2.2 });
+    noise({ t: A.ctx.currentTime + 0.1, fc: 1500 - w * 700, fc2: 180, dur: 0.14 + w * 0.06, gain: 0.32 + w * 0.24 });
+    tone({ t: A.ctx.currentTime + 0.1, type: "sine", f: 150 - w * 50, f2: 38, dur: 0.2 + w * 0.08, gain: 0.4 + w * 0.2 });
+  },
+  block: function () {
+    noise({ filter: "highpass", fc: 3200, dur: 0.06, gain: 0.22 });
+    tone({ duty: 0.5, f: 620, f2: 380, dur: 0.07, gain: 0.16 });
+  },
+  guard: function () {
+    tone({ duty: 0.25, f: 420, f2: 660, dur: 0.11, gain: 0.16 });
+  },
+  card: function () {
+    tone({ duty: 0.125, f: 780, f2: 1080, dur: 0.05, gain: 0.13 });
+  },
+  move: function () {
+    noise({ filter: "bandpass", fc: 700, fc2: 2400, dur: 0.16, gain: 0.14, q: 3 });
+  },
+  throw_: function () {
+    /* rising strain, then the mat */
+    tone({ type: "sawtooth", f: 180, f2: 520, dur: 0.24, gain: 0.14, filter: "lowpass", fc: 900, fc2: 2400 });
+    var t = A.ctx.currentTime + 0.26;
+    noise({ t: t, fc: 900, fc2: 120, dur: 0.3, gain: 0.5, q: 0.7 });
+    tone({ t: t, type: "sine", f: 110, f2: 32, dur: 0.34, gain: 0.5 });
+  },
+  sub: function () {
+    tone({ type: "sawtooth", f: 220, f2: 900, dur: 0.5, gain: 0.13, filter: "lowpass", fc: 600, fc2: 3000, q: 6 });
+  },
+  tap: function () {
+    for (var i = 0; i < 3; i++)
+      noise({ t: A.ctx.currentTime + i * 0.13, filter: "lowpass", fc: 400, dur: 0.1, gain: 0.4 });
+  },
+  ko: function () {
+    noise({ fc: 1800, fc2: 60, dur: 0.9, gain: 0.55, q: 0.6 });
+    tone({ type: "square", f: 300, f2: 30, dur: 1.0, gain: 0.3 });
+    tone({ type: "sine", f: 90, f2: 26, dur: 1.2, gain: 0.45 });
+  },
+  bell: function () {
+    /* three struck partials: the ring to start the round */
+    [1, 2.76, 5.4].forEach(function (mult, i) {
+      tone({ type: "sine", f: 520 * mult, dur: 1.6 - i * 0.35, gain: 0.16 / (i + 1) });
+    });
+  },
+  select: function () {
+    tone({ duty: 0.5, f: 660, dur: 0.05, gain: 0.16 });
+    tone({ t: A.ctx.currentTime + 0.05, duty: 0.5, f: 990, dur: 0.09, gain: 0.16 });
+  },
+  hover: function () {
+    tone({ duty: 0.125, f: 1180, dur: 0.03, gain: 0.07 });
+  },
+  spark: function () {
+    noise({ filter: "highpass", fc: 5200, dur: 0.05, gain: 0.16 });
+  }
+};
+
+/* ================================================================ tracker
+
+   Songs are step sequences. Each token is one step: a note name starts
+   a note, "-" sustains the previous one, "." is a rest. Percussion uses
+   k (kick), s (snare), h (hat), o (open hat).                          */
+
+function parseChannel(str) {
+  var toks = str.trim().split(/\s+/), ev = [], cur = null;
+  for (var i = 0; i < toks.length; i++) {
+    var t = toks[i];
+    if (t === "-") { if (cur) cur.dur++; continue; }
+    cur = null;
+    if (t === ".") continue;
+    cur = { step: i, dur: 1, note: t };
+    ev.push(cur);
+  }
+  return { events: ev, length: toks.length };
+}
+
+function buildSong(def) {
+  var chans = def.ch.map(function (c) {
+    var p = parseChannel(c.notes);
+    return { cfg: c, events: p.events, length: p.length };
+  });
+  var len = 0;
+  chans.forEach(function (c) { len = Math.max(len, c.length); });
+  return { bpm: def.bpm, div: def.div || 2, chans: chans, length: len };
+}
+
+function scheduleStep(song, step, when) {
+  var spb = 60 / song.bpm / song.div;
+  for (var i = 0; i < song.chans.length; i++) {
+    var ch = song.chans[i], cfg = ch.cfg;
+    for (var j = 0; j < ch.events.length; j++) {
+      var e = ch.events[j];
+      if (e.step % ch.length !== step % ch.length) continue;
+      var dur = e.dur * spb * 0.94;
+      if (cfg.drum) {
+        if (e.note === "k") {
+          tone({ t: when, type: "sine", f: 150, f2: 42, dur: 0.17, gain: 0.5, bus: A.musicGain });
+        } else if (e.note === "s") {
+          noise({ t: when, fc: 1900, dur: 0.13, gain: 0.3, q: 0.8, bus: A.musicGain });
+          tone({ t: when, type: "triangle", f: 260, f2: 170, dur: 0.1, gain: 0.16, bus: A.musicGain });
+        } else if (e.note === "h") {
+          noise({ t: when, filter: "highpass", fc: 7000, dur: 0.03, gain: 0.1, bus: A.musicGain });
+        } else if (e.note === "o") {
+          noise({ t: when, filter: "highpass", fc: 6000, dur: 0.16, gain: 0.11, bus: A.musicGain });
+        }
+      } else {
+        var f = freq(e.note);
+        if (!f) continue;
+        tone({
+          t: when, f: f, dur: Math.min(dur, cfg.maxDur || 9),
+          duty: cfg.duty, type: cfg.type, gain: cfg.gain === undefined ? 0.2 : cfg.gain,
+          attack: 0.004, bus: A.musicGain
+        });
+      }
+    }
+  }
+}
+
+function stopMusic() {
+  if (A.timer) { clearInterval(A.timer); A.timer = null; }
+  A.song = null;
+}
+
+function playMusic(def) {
+  if (!init()) return;
+  if (A.song && A.song.name === def.name) return;   /* already playing */
+  stopMusic();
+  var song = buildSong(def);
+  song.name = def.name;
+  song.loop = def.loop !== false;
+  A.song = song;
+  A.step = 0;
+  A.nextTime = A.ctx.currentTime + 0.08;
+
+  A.timer = setInterval(function () {
+    if (!A.song) return;
+    var spb = 60 / song.bpm / song.div;
+    /* schedule a short way ahead so timing survives a busy main thread */
+    while (A.nextTime < A.ctx.currentTime + 0.18) {
+      if (!song.loop && A.step >= song.length) { stopMusic(); return; }
+      scheduleStep(song, A.step, A.nextTime);
+      A.step++;
+      A.nextTime += spb;
+    }
+  }, 30);
+}
+
+/* ================================================================ the songs */
+
+/* Menu: slow, modal, room to breathe. A minor with a flat-6 lean. */
+var SONG_MENU = {
+  name: "menu", bpm: 84, div: 2, ch: [
+    { duty: 0.25, gain: 0.15, notes:
+      "a4 - - - e4 - - - f4 - - - e4 - - - " +
+      "d4 - - - c4 - - - b3 - - - . . . . " +
+      "c5 - - - b4 - - - a4 - - - g4 - - - " +
+      "f4 - - e4 - - d4 - c4 - - - . . . ." },
+    { duty: 0.125, gain: 0.07, notes:
+      "e4 - - - b3 - - - c4 - - - b3 - - - " +
+      "a3 - - - g3 - - - g3 - - - . . . . " +
+      "e4 - - - g4 - - - e4 - - - d4 - - - " +
+      "c4 - - c4 - - b3 - a3 - - - . . . ." },
+    { type: "triangle", gain: 0.26, notes:
+      "a1 - - - a1 - - - f1 - - - f1 - - - " +
+      "d1 - - - d1 - - - e1 - - - e1 - - - " +
+      "a1 - - - a1 - - - f1 - - - f1 - - - " +
+      "d1 - - - e1 - - - a1 - - - - - - -" }
+  ]
+};
+
+/* Battle: driving eighths, a hook that repeats, hats on the offbeat. */
+var SONG_BATTLE = {
+  name: "battle", bpm: 152, div: 2, ch: [
+    { duty: 0.25, gain: 0.17, notes:
+      "a4 - c5 - e5 - d5 - c5 - a4 - . . e4 - " +
+      "f4 - a4 - c5 - b4 - a4 - g4 - . . . . " +
+      "g4 - b4 - d5 - c5 - b4 - g4 - . . d4 - " +
+      "e4 - g4 - b4 - a4 - g4 - e4 - . . . . " },
+    { duty: 0.125, gain: 0.08, notes:
+      "e4 - a4 - . . b4 - a4 - e4 - . . c4 - " +
+      "c4 - f4 - . . a4 - f4 - c4 - . . . . " +
+      "d4 - g4 - . . b4 - g4 - d4 - . . b3 - " +
+      "b3 - e4 - . . g4 - e4 - b3 - . . . . " },
+    { type: "triangle", gain: 0.3, notes:
+      "a1 a1 a2 a1 a1 a1 a2 a1 a1 a1 a2 a1 e2 - e1 - " +
+      "f1 f1 f2 f1 f1 f1 f2 f1 f1 f1 f2 f1 c2 - c1 - " +
+      "g1 g1 g2 g1 g1 g1 g2 g1 g1 g1 g2 g1 d2 - d1 - " +
+      "e1 e1 e2 e1 e1 e1 e2 e1 e1 e1 e2 e1 e2 - e2 - " },
+    { drum: true, notes:
+      "k h s h k h s h k h s h k k s h " +
+      "k h s h k h s h k h s h k k s o " +
+      "k h s h k h s h k h s h k k s h " +
+      "k h s h k h s h k k s h s s o . " }
+  ]
+};
+
+/* Victory: eight bars would overstay. Four, then silence. */
+var SONG_WIN = {
+  name: "win", bpm: 150, div: 2, loop: false, ch: [
+    { duty: 0.5, gain: 0.2, notes: "c5 - e5 - g5 - c6 - - - g5 - c6 - - - - - - -" },
+    { duty: 0.25, gain: 0.1, notes: "e4 - g4 - c5 - e5 - - - c5 - e5 - - - - - - -" },
+    { type: "triangle", gain: 0.3, notes: "c2 - c2 - g1 - c2 - - - g1 - c2 - - - - - - -" },
+    { drum: true, notes: "k . s . k . s . k k s . k . s . . . . ." }
+  ]
+};
+
+var SONG_LOSE = {
+  name: "lose", bpm: 96, div: 2, loop: false, ch: [
+    { duty: 0.25, gain: 0.17, notes: "a4 - - - g4 - - - f4 - - - e4 - - - - - - -" },
+    { type: "triangle", gain: 0.28, notes: "a1 - - - f1 - - - d1 - - - e1 - - - a1 - - -" }
+  ]
+};
+
+/* ================================================================ export */
+
+function unlock() {
+  if (!init()) return;
+  if (A.ctx.state === "suspended") A.ctx.resume();
+}
+
+function setMuted(m) {
+  A.muted = m;
+  try { localStorage.setItem("motw-muted", m ? "1" : "0"); } catch (e) {}
+  if (A.master) A.master.gain.value = m ? 0 : 0.5;
+}
+
+var api = {
+  unlock: unlock,
+  isMuted: function () { return A.muted; },
+  setMuted: setMuted,
+  music: { menu: SONG_MENU, battle: SONG_BATTLE, win: SONG_WIN, lose: SONG_LOSE },
+  play: function (n) { if (n) playMusic(n); },
+  stop: stopMusic,
+  sfx: function (name, arg) {
+    if (!A.ctx || A.muted) return;
+    var f = SFX[name] || SFX[name + "_"];
+    if (f) { try { f(arg); } catch (e) {} }
+  }
+};
+
+window.MOTW_RETRO = window.MOTW_RETRO || {};
+window.MOTW_RETRO.audio = api;
+
+/* Browsers require a gesture before audio starts. */
+["pointerdown", "keydown", "touchstart"].forEach(function (ev) {
+  window.addEventListener(ev, function once() {
+    unlock();
+    ["pointerdown", "keydown", "touchstart"].forEach(function (e2) {
+      window.removeEventListener(e2, once);
+    });
+  }, { once: false });
+});
+
+})();
+</script>
+
+<script>
+/* ================================================================ 5. sprites
+
+   Fighters are drawn, not stored. Each one is a small skeleton of joint
+   positions rendered as chunky shaded tubes, so a pose is eleven pairs
+   of numbers rather than a spritesheet. That buys smooth interpolation
+   between poses and lets seven fighters share one renderer with only a
+   palette and a couple of accessory flags to tell them apart.          */
+(function () {
+"use strict";
+
+var R = window.MOTW_RETRO || (window.MOTW_RETRO = {});
+var PAL = R.PAL;
+
+var W = 256, H = 136, GROUND = 112;
+
+/* ---------------------------------------------------------------- palettes */
+
+function shade(hex, amt) {
+  var n = parseInt(hex.slice(1), 16);
+  var r = (n >> 16) & 255, g = (n >> 8) & 255, b = n & 255;
+  r = Math.max(0, Math.min(255, Math.round(r + amt)));
+  g = Math.max(0, Math.min(255, Math.round(g + amt)));
+  b = Math.max(0, Math.min(255, Math.round(b + amt)));
+  return "#" + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1);
+}
+
+function mat(hex) {
+  return { base: hex, hi: shade(hex, 46), lo: shade(hex, -54), out: "#100c1c" };
+}
+
+var SKINS = ["#e8b088", "#c98a5e", "#8d5a36", "#f0c9a0", "#6f4326"];
+
+function makePalette(o) {
+  var skin = o.skin || SKINS[0];
+  return {
+    skin: mat(skin),
+    gi: mat(o.gi || "#e6e2d4"),
+    trim: mat(o.trim || "#2a2440"),
+    belt: mat(o.belt || "#1a1626"),
+    hair: mat(o.hair || "#241c18"),
+    glove: o.glove ? mat(o.glove) : null,
+    band: o.band ? mat(o.band) : null,
+    bare: !!o.bare,          /* torso is skin, not a jacket */
+    shorts: mat(o.shorts || o.gi || "#2a2440")
+  };
+}
+
+var ART_LOOK = {
+  boxing:    { bare: true,  shorts: "#e03a28", glove: "#e03a28", skin: SKINS[1], hair: "#2b1a12" },
+  karate:    { gi: "#efeadb", belt: "#141018", skin: SKINS[3], band: "#e6e2d4", hair: "#1a1410" },
+  taekwondo: { gi: "#f2eee2", trim: "#1b1726", belt: "#141018", skin: SKINS[3], hair: "#161018" },
+  muaythai:  { bare: true,  shorts: "#e8a92c", band: "#d8c48a", skin: SKINS[2], hair: "#171016", glove: "#b6252b" },
+  judo:      { gi: "#3f7fd8", belt: "#141018", skin: SKINS[0], hair: "#5d4326" },
+  bjj:       { gi: "#8a5cd0", belt: "#3a1f6e", skin: SKINS[1], hair: "#221a16" },
+  mma:       { bare: true,  shorts: "#2a2440", glove: "#1c1830", skin: SKINS[4], hair: "#120e14" }
+};
+
+function paletteFor(key) {
+  return makePalette(ART_LOOK[key] || ART_LOOK.mma);
+}
+
+/* ---------------------------------------------------------------- poses
+
+   Coordinates are in fighter-local pixels: x runs forward toward the
+   opponent, y runs upward from the floor. A standing fighter is about
+   45 tall, which puts them at a believable size on a 256-wide stage.  */
+
+var POSES = {
+  idle: {
+    head: [1, 40], neck: [0, 33], hip: [0, 20],
+    eF: [6, 29], hF: [8, 34], eB: [-6, 28], hB: [-2, 33],
+    kF: [5, 10], fF: [7, 0], kB: [-5, 10], fB: [-8, 0]
+  },
+  guard: {
+    head: [0, 40], neck: [0, 33], hip: [0, 20],
+    eF: [5, 27], hF: [5, 36], eB: [-5, 27], hB: [-2, 36],
+    kF: [4, 10], fF: [6, 0], kB: [-6, 10], fB: [-9, 0]
+  },
+  jab: {
+    head: [2, 40], neck: [1, 33], hip: [0, 20],
+    eF: [12, 33], hF: [22, 34], eB: [-5, 28], hB: [-1, 35],
+    kF: [6, 10], fF: [9, 0], kB: [-6, 10], fB: [-9, 0]
+  },
+  cross: {
+    head: [3, 39], neck: [2, 33], hip: [1, 20],
+    eF: [4, 30], hF: [3, 36], eB: [9, 32], hB: [23, 32],
+    kF: [7, 10], fF: [10, 0], kB: [-6, 9], fB: [-9, 0]
+  },
+  hook: {
+    head: [2, 40], neck: [1, 33], hip: [0, 20],
+    eF: [11, 38], hF: [19, 33], eB: [-4, 29], hB: [-1, 35],
+    kF: [6, 10], fF: [9, 0], kB: [-6, 10], fB: [-9, 0]
+  },
+  uppercut: {
+    head: [1, 39], neck: [0, 32], hip: [0, 19],
+    eF: [9, 26], hF: [13, 40], eB: [-5, 28], hB: [-2, 34],
+    kF: [5, 9], fF: [8, 0], kB: [-6, 9], fB: [-9, 0]
+  },
+  highkick: {
+    head: [-2, 41], neck: [-2, 34], hip: [-1, 21],
+    eF: [4, 30], hF: [7, 36], eB: [-9, 27], hB: [-12, 32],
+    kF: [11, 25], fF: [24, 33], kB: [-4, 11], fB: [-6, 0]
+  },
+  lowkick: {
+    head: [-1, 40], neck: [-1, 33], hip: [0, 20],
+    eF: [5, 29], hF: [8, 34], eB: [-8, 27], hB: [-10, 31],
+    kF: [11, 15], fF: [23, 9], kB: [-4, 10], fB: [-7, 0]
+  },
+  knee: {
+    head: [2, 39], neck: [1, 32], hip: [0, 20],
+    eF: [9, 33], hF: [15, 35], eB: [6, 32], hB: [13, 33],
+    kF: [11, 24], fF: [6, 15], kB: [-5, 10], fB: [-8, 0]
+  },
+  grapple: {
+    head: [3, 39], neck: [2, 32], hip: [1, 19],
+    eF: [11, 32], hF: [19, 34], eB: [8, 30], hB: [17, 30],
+    kF: [7, 10], fF: [10, 0], kB: [-6, 9], fB: [-10, 0]
+  },
+  hit: {
+    head: [-6, 39], neck: [-4, 32], hip: [-1, 20],
+    eF: [2, 27], hF: [1, 21], eB: [-10, 28], hB: [-15, 25],
+    kF: [4, 10], fF: [5, 0], kB: [-6, 10], fB: [-10, 0]
+  },
+  block: {
+    head: [-2, 39], neck: [-1, 32], hip: [0, 20],
+    eF: [4, 30], hF: [8, 38], eB: [0, 30], hB: [5, 38],
+    kF: [3, 10], fF: [5, 0], kB: [-6, 10], fB: [-10, 0]
+  },
+  /* Ground game: the fighter on top posts up and drives down, the one
+     underneath plays guard with the hips and legs framing.            */
+  groundTop: {
+    head: [7, 25], neck: [4, 20], hip: [-6, 13],
+    eF: [10, 15], hF: [14, 4], eB: [1, 16], hB: [6, 4],
+    kF: [-9, 7], fF: [-4, 1], kB: [-12, 6], fB: [-17, 1]
+  },
+  groundBottom: {
+    head: [-12, 6], neck: [-7, 6], hip: [6, 7],
+    eF: [-2, 12], hF: [4, 15], eB: [-9, 11], hB: [-4, 14],
+    kF: [13, 14], fF: [20, 8], kB: [11, 11], fB: [19, 4]
+  },
+  ko: {
+    head: [-16, 5], neck: [-11, 5], hip: [3, 5],
+    eF: [-8, 3], hF: [-3, 1], eB: [-13, 2], hB: [-18, 1],
+    kF: [11, 5], fF: [19, 3], kB: [10, 3], fB: [18, 1]
+  }
+};
+
+var JOINTS = ["head", "neck", "hip", "eF", "hF", "eB", "hB", "kF", "fF", "kB", "fB"];
+
+function clonePose(p) {
+  var o = {};
+  for (var i = 0; i < JOINTS.length; i++) o[JOINTS[i]] = [p[JOINTS[i]][0], p[JOINTS[i]][1]];
+  return o;
+}
+
+function lerpPose(cur, target, k) {
+  for (var i = 0; i < JOINTS.length; i++) {
+    var j = JOINTS[i], a = cur[j], b = target[j];
+    a[0] += (b[0] - a[0]) * k;
+    a[1] += (b[1] - a[1]) * k;
+  }
+}
+
+/* ---------------------------------------------------------------- drawing */
+
+function Painter(ctx) { this.ctx = ctx; }
+
+Painter.prototype.rect = function (x, y, w, h, col) {
+  this.ctx.fillStyle = col;
+  this.ctx.fillRect(Math.round(x), Math.round(y), Math.round(w), Math.round(h));
+};
+
+/* A limb is a run of squares along a line. Drawing it three times at
+   decreasing width produces an outline, a body and a highlight, which
+   is what gives flat pixel art its roundness. */
+Painter.prototype.tube = function (ax, ay, bx, by, th, m) {
+  var dx = bx - ax, dy = by - ay;
+  var steps = Math.max(1, Math.ceil(Math.max(Math.abs(dx), Math.abs(dy))));
+  var pass = [
+    { t: th + 2, c: m.out, ox: 0, oy: 0 },
+    { t: th, c: m.base, ox: 0, oy: 0 },
+    { t: Math.max(1, th - 2), c: m.hi, ox: -1, oy: -1 }
+  ];
+  for (var p = 0; p < pass.length; p++) {
+    var q = pass[p];
+    this.ctx.fillStyle = q.c;
+    for (var i = 0; i <= steps; i++) {
+      var x = ax + dx * (i / steps), y = ay + dy * (i / steps);
+      this.ctx.fillRect(
+        Math.round(x - q.t / 2 + q.ox), Math.round(y - q.t / 2 + q.oy),
+        q.t, q.t);
+    }
+  }
+};
+
+Painter.prototype.ball = function (cx, cy, r, m) {
+  var pass = [
+    { r: r + 1, c: m.out, ox: 0, oy: 0 },
+    { r: r, c: m.base, ox: 0, oy: 0 },
+    { r: r - 2, c: m.hi, ox: -1, oy: -1 }
+  ];
+  for (var p = 0; p < pass.length; p++) {
+    var q = pass[p];
+    if (q.r <= 0) continue;
+    this.ctx.fillStyle = q.c;
+    for (var y = -q.r; y <= q.r; y++) {
+      var half = Math.floor(Math.sqrt(q.r * q.r - y * y));
+      this.ctx.fillRect(
+        Math.round(cx - half + q.ox), Math.round(cy + y + q.oy),
+        half * 2 + 1, 1);
+    }
+  }
+};
+
+/* The torso is a tapered slab between the shoulder line and the hips,
+   drawn as horizontal spans so it follows the lean of the pose. */
+Painter.prototype.torso = function (nx, ny, hx, hy, m, shoulderW, hipW) {
+  var steps = Math.max(1, Math.ceil(Math.abs(hy - ny) + Math.abs(hx - nx)));
+  for (var i = 0; i <= steps; i++) {
+    var t = i / steps;
+    var x = nx + (hx - nx) * t, y = ny + (hy - ny) * t;
+    var w = shoulderW + (hipW - shoulderW) * t;
+    this.rect(x - w / 2 - 1, y, w + 2, 1, m.out);
+  }
+  for (i = 0; i <= steps; i++) {
+    t = i / steps;
+    x = nx + (hx - nx) * t; y = ny + (hy - ny) * t;
+    w = shoulderW + (hipW - shoulderW) * t;
+    this.rect(x - w / 2, y, w, 1, m.base);
+    this.rect(x - w / 2, y, Math.max(1, w * 0.32), 1, m.hi);
+  }
+};
+
+/* ---------------------------------------------------------------- fighter */
+
+function Fighter(side, artKey) {
+  this.side = side;                 /* +1 faces right, -1 faces left */
+  this.art = artKey;
+  this.pal = paletteFor(artKey);
+  this.x = 80; this.y = GROUND;
+  this.base = "idle";
+  this.cur = clonePose(POSES.idle);
+  this.target = POSES.idle;
+  this.lunge = 0; this.lungeTarget = 0;
+  this.knock = 0;
+  this.action = null;
+  this.bob = Math.random() * 6.28;
+}
+
+Fighter.prototype.setBase = function (name) {
+  if (POSES[name]) this.base = name;
+};
+
+Fighter.prototype.act = function (pose, dur, lunge) {
+  if (!POSES[pose]) return;
+  this.action = { pose: pose, until: performance.now() + (dur || 320) };
+  this.lungeTarget = lunge || 0;
+};
+
+Fighter.prototype.hurt = function (power) {
+  this.action = { pose: "hit", until: performance.now() + 260 };
+  this.knock = Math.min(9, 3 + (power || 2));
+};
+
+Fighter.prototype.update = function (dt, now) {
+  if (this.action && now > this.action.until) {
+    this.action = null;
+    this.lungeTarget = 0;
+  }
+  var poseName = this.action ? this.action.pose : this.base;
+  this.target = POSES[poseName] || POSES.idle;
+  lerpPose(this.cur, this.target, this.action ? 0.42 : 0.22);
+  this.lunge += (this.lungeTarget - this.lunge) * 0.35;
+  this.knock *= 0.82;
+  this.bob += dt * 2.6;
+};
+
+Fighter.prototype.draw = function (P) {
+  var p = this.cur, s = this.side, pal = this.pal;
+  var standing = this.base !== "ko" && this.base !== "groundBottom" && this.base !== "groundTop";
+  var bobY = standing && !this.action ? Math.sin(this.bob) * 0.9 : 0;
+  var ox = this.x + s * this.lunge - s * this.knock;
+  var oy = this.y + bobY;
+
+  /* map fighter-local coords into canvas space */
+  var self = this;
+  function X(j) { return ox + s * p[j][0]; }
+  function Y(j) { return oy - p[j][1]; }
+
+  /* contact shadow keeps the fighter anchored to the floor */
+  P.ctx.fillStyle = "rgba(0,0,0,.45)";
+  var sw = standing ? 15 : 26;
+  for (var i = 0; i < 3; i++)
+    P.ctx.fillRect(Math.round(ox - sw / 2 + i), Math.round(this.y + i), sw - i * 2, 1);
+
+  var skin = pal.skin, giM = pal.bare ? pal.skin : pal.gi;
+
+  /* far-side limbs first so the near arm and leg read as in front */
+  P.tube(X("hip"), Y("hip"), X("kB"), Y("kB"), 5, pal.bare ? skin : giM);
+  P.tube(X("kB"), Y("kB"), X("fB"), Y("fB"), 4, skin);
+  P.tube(X("neck") - s * 2, Y("neck") + 2, X("eB"), Y("eB"), 4, giM);
+  P.tube(X("eB"), Y("eB"), X("hB"), Y("hB"), 3, skin);
+
+  /* torso, then belt or waistband */
+  P.torso(X("neck"), Y("neck"), X("hip"), Y("hip"), giM, 13, 11);
+  if (!pal.bare) {
+    /* gi lapels: a V of trim down the chest */
+    var lx = X("neck"), ly = Y("neck"), hx = X("hip"), hy = Y("hip");
+    P.tube(lx, ly + 1, (lx + hx) / 2, (ly + hy) / 2 + 1, 2, pal.trim);
+  }
+  P.rect(X("hip") - 7, Y("hip") - 1, 14, 3, pal.belt.out);
+  P.rect(X("hip") - 6, Y("hip") - 1, 12, 2, pal.belt.base);
+  if (pal.bare) {
+    P.rect(X("hip") - 7, Y("hip"), 14, 6, pal.shorts.out);
+    P.rect(X("hip") - 6, Y("hip"), 12, 5, pal.shorts.base);
+    P.rect(X("hip") - 6, Y("hip"), 12, 1, pal.shorts.hi);
+  }
+
+  /* near leg and arm */
+  P.tube(X("hip"), Y("hip"), X("kF"), Y("kF"), 5, pal.bare ? skin : giM);
+  P.tube(X("kF"), Y("kF"), X("fF"), Y("fF"), 4, skin);
+  P.rect(X("fF") - 2, Y("fF") - 1, 5, 3, skin.out);
+
+  /* head: skull, hair, then the accessory that identifies the art */
+  P.ball(X("head"), Y("head"), 5, skin);
+  P.ctx.fillStyle = pal.hair.base;
+  P.ctx.fillRect(Math.round(X("head") - 5), Math.round(Y("head") - 6), 10, 3);
+  P.ctx.fillStyle = pal.hair.lo;
+  P.ctx.fillRect(Math.round(X("head") - 5), Math.round(Y("head") - 6), 10, 1);
+  if (pal.band) {
+    P.rect(X("head") - 6, Y("head") - 4, 12, 2, pal.band.out);
+    P.rect(X("head") - 6, Y("head") - 4, 12, 1, pal.band.base);
+    /* trailing tie on the back of the head */
+    P.rect(X("head") - s * 8, Y("head") - 3, 3, 1, pal.band.base);
+  }
+  /* eye, so the fighter reads as facing the right way */
+  P.rect(X("head") + s * 2, Y("head") - 1, 1, 2, "#171018");
+
+  P.tube(X("neck") + s * 2, Y("neck") + 2, X("eF"), Y("eF"), 4, giM);
+  P.tube(X("eF"), Y("eF"), X("hF"), Y("hF"), 3, skin);
+
+  /* gloves or taped fists */
+  var gm = pal.glove || skin;
+  P.ball(X("hF"), Y("hF"), pal.glove ? 4 : 3, gm);
+  P.ball(X("hB"), Y("hB"), pal.glove ? 4 : 3, gm);
+};
+
+/* ---------------------------------------------------------------- effects */
+
+function Spark(x, y, kind) {
+  this.x = x; this.y = y; this.kind = kind || "hit";
+  this.t = 0; this.life = kind === "big" ? 22 : 14;
+}
+Spark.prototype.draw = function (P) {
+  var k = this.t / this.life;
+  var r = (this.kind === "big" ? 20 : 12) * (0.35 + k * 1.5);
+  var cols = ["#ffffff", PAL.goldHi, PAL.gold, "#ff8a3d"];
+  var col = cols[Math.min(cols.length - 1, Math.floor(k * cols.length))];
+  P.ctx.fillStyle = col;
+  var arms = this.kind === "big" ? 8 : 6;
+  for (var i = 0; i < arms; i++) {
+    var a = (i / arms) * Math.PI * 2 + k * 0.6;
+    var len = r * (i % 2 ? 0.55 : 1);
+    for (var d = 0; d < len; d += 1.4) {
+      var w = Math.max(1, Math.round((1 - d / len) * 3));
+      P.ctx.fillRect(
+        Math.round(this.x + Math.cos(a) * d - w / 2),
+        Math.round(this.y + Math.sin(a) * d - w / 2), w, w);
+    }
+  }
+  if (k < 0.4) {
+    P.ctx.fillStyle = "#ffffff";
+    P.ctx.fillRect(Math.round(this.x - 3), Math.round(this.y - 3), 6, 6);
+  }
+};
+
+/* ---------------------------------------------------------------- backdrop
+
+   Painted once into an offscreen canvas and blitted each frame: a dojo
+   hall with lit paper screens, hanging banners and a silhouetted crowd. */
+
+function buildBackdrop() {
+  var cv = document.createElement("canvas");
+  cv.width = W; cv.height = H;
+  var ctx = cv.getContext("2d");
+  var P = new Painter(ctx);
+
+  var g = ctx.createLinearGradient(0, 0, 0, GROUND);
+  g.addColorStop(0, "#241a4a");
+  g.addColorStop(0.55, "#1a1336");
+  g.addColorStop(1, "#120d26");
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, W, GROUND);
+
+  /* lit shoji panels along the back wall */
+  for (var i = 0; i < 7; i++) {
+    var x = 8 + i * 35;
+    P.rect(x, 22, 28, 52, "#3a2f66");
+    P.rect(x + 2, 24, 24, 48, "#f0d89a");
+    P.rect(x + 2, 24, 24, 20, "#fbe9be");
+    ctx.fillStyle = "#3a2f66";
+    for (var v = 1; v < 3; v++) P.rect(x + 2 + v * 8, 24, 1, 48, "#3a2f66");
+    for (var hh = 1; hh < 4; hh++) P.rect(x + 2, 24 + hh * 12, 24, 1, "#3a2f66");
+    P.rect(x, 22, 28, 2, "#120d26");
+  }
+
+  /* crowd silhouettes in front of the wall */
+  var seed = 7;
+  function rnd() { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed / 0x7fffffff; }
+  for (var row = 0; row < 2; row++) {
+    var y = 66 + row * 9;
+    for (var cx = -4; cx < W + 6; cx += 9 + Math.floor(rnd() * 3)) {
+      var tint = ["#1b1430", "#241a3e", "#150f26"][Math.floor(rnd() * 3)];
+      ctx.fillStyle = tint;
+      ctx.fillRect(cx, y + 4, 8, 10);
+      ctx.beginPath();
+      ctx.fillRect(cx + 2, y, 5, 5);
+    }
+  }
+
+  /* hanging banners */
+  [16, W - 30].forEach(function (bx, idx) {
+    P.rect(bx, 4, 14, 46, "#7a1f2a");
+    P.rect(bx, 4, 14, 2, "#c8a24a");
+    P.rect(bx + 1, 6, 12, 42, "#a02a36");
+    P.rect(bx + 4, 12, 6, 6, "#f0d89a");
+    P.rect(bx + 4, 24, 6, 6, "#f0d89a");
+    P.rect(bx + 4, 36, 6, 4, "#f0d89a");
+  });
+
+  /* floor: boards receding, with a lighter mat inset */
+  var fg = ctx.createLinearGradient(0, GROUND - 8, 0, H);
+  fg.addColorStop(0, "#5a3b28");
+  fg.addColorStop(1, "#301d16");
+  ctx.fillStyle = fg;
+  ctx.fillRect(0, GROUND - 8, W, H - GROUND + 8);
+  P.rect(0, GROUND - 9, W, 1, "#8a6340");
+  P.rect(0, GROUND - 8, W, 1, "#2a1a12");
+  for (var b = 0; b < 9; b++) {
+    var bxx = b * 30 - 10;
+    ctx.fillStyle = "rgba(20,10,8,.45)";
+    ctx.fillRect(bxx, GROUND - 7, 1, H - GROUND + 7);
+  }
+  ctx.fillStyle = "rgba(255,220,160,.06)";
+  ctx.fillRect(0, GROUND - 7, W, 3);
+
+  return cv;
+}
+
+/* ---------------------------------------------------------------- stage */
+
+var Stage = {
+  cv: null, ctx: null, P: null, bg: null,
+  fighters: [null, null], sparks: [], shake: 0, flash: 0, running: false,
+  banner: null
+};
+
+Stage.mount = function () {
+  var arena = document.getElementById("arena");
+  if (!arena || this.cv) return false;
+  var wrap = document.createElement("div");
+  wrap.id = "stage-wrap";
+  var cv = document.createElement("canvas");
+  cv.id = "stage";
+  cv.width = W; cv.height = H;
+  wrap.appendChild(cv);
+  arena.insertBefore(wrap, arena.firstChild);
+
+  this.cv = cv;
+  this.ctx = cv.getContext("2d");
+  this.ctx.imageSmoothingEnabled = false;
+  this.P = new Painter(this.ctx);
+  this.bg = buildBackdrop();
+  return true;
+};
+
+Stage.setFighters = function (a0, a1) {
+  this.fighters[0] = new Fighter(1, a0);
+  this.fighters[1] = new Fighter(-1, a1);
+  this.sparks.length = 0;
+  this.layout("far", null);
+};
+
+/* Positions follow the game's range state, which is the whole point of
+   the stage: you should be able to read the range without the labels. */
+Stage.layout = function (range, top) {
+  var f0 = this.fighters[0], f1 = this.fighters[1];
+  if (!f0 || !f1) return;
+  var spread = range === "far" ? 62 : range === "close" ? 26 : 18;
+  f0.x = W / 2 - spread;
+  f1.x = W / 2 + spread;
+  f0.y = f1.y = GROUND;
+  if (range === "ground") {
+    if (f0.base !== "ko") f0.setBase(top === 0 ? "groundTop" : "groundBottom");
+    if (f1.base !== "ko") f1.setBase(top === 1 ? "groundTop" : "groundBottom");
+    f0.x = W / 2 - 10; f1.x = W / 2 + 10;
+  } else {
+    if (f0.base !== "ko") f0.setBase(range === "close" ? "guard" : "idle");
+    if (f1.base !== "ko") f1.setBase(range === "close" ? "guard" : "idle");
+  }
+};
+
+Stage.spark = function (whichIdx, kind) {
+  var f = this.fighters[whichIdx];
+  if (!f) return;
+  var y = f.base === "ko" || f.base === "groundBottom" ? GROUND - 8 : GROUND - 34;
+  this.sparks.push(new Spark(f.x - f.side * 8, y, kind));
+};
+
+Stage.hit = function (idx, power) {
+  var f = this.fighters[idx];
+  if (!f) return;
+  f.hurt(power);
+  this.spark(idx, power >= 5 ? "big" : "hit");
+  this.shake = Math.min(7, 2 + power * 0.6);
+  this.flash = power >= 5 ? 0.5 : 0.22;
+};
+
+Stage.showBanner = function (text) {
+  this.banner = { text: String(text || "").toUpperCase(), t: 0, life: 70 };
+};
+
+Stage.frame = function (now) {
+  var dt = 1 / 60;
+  var ctx = this.ctx, P = this.P;
+  ctx.save();
+
+  var sx = 0, sy = 0;
+  if (this.shake > 0.4) {
+    sx = (Math.random() - 0.5) * this.shake * 2;
+    sy = (Math.random() - 0.5) * this.shake;
+    this.shake *= 0.8;
+  }
+  ctx.setTransform(1, 0, 0, 1, Math.round(sx), Math.round(sy));
+  ctx.drawImage(this.bg, 0, 0);
+
+  var order = [0, 1];
+  /* draw the further fighter first so overlaps look right on the ground */
+  if (this.fighters[0] && this.fighters[1] && this.fighters[0].base === "groundTop") order = [1, 0];
+  for (var i = 0; i < order.length; i++) {
+    var f = this.fighters[order[i]];
+    if (!f) continue;
+    f.update(dt, now);
+    f.draw(P);
+  }
+
+  for (var s = this.sparks.length - 1; s >= 0; s--) {
+    var sp = this.sparks[s];
+    sp.draw(P);
+    sp.t++;
+    if (sp.t > sp.life) this.sparks.splice(s, 1);
+  }
+
+  if (this.flash > 0.01) {
+    ctx.fillStyle = "rgba(255,255,255," + this.flash.toFixed(3) + ")";
+    ctx.fillRect(-8, -8, W + 16, H + 16);
+    this.flash *= 0.72;
+  }
+
+  if (this.banner) {
+    var b = this.banner;
+    b.t++;
+    var k = b.t / b.life;
+    var scale = 3;
+    var tw = R.textWidth(b.text, scale);
+    var slide = k < 0.18 ? (1 - k / 0.18) * -70 : k > 0.82 ? ((k - 0.82) / 0.18) * 70 : 0;
+    var alpha = k > 0.82 ? 1 - (k - 0.82) / 0.18 : 1;
+    ctx.globalAlpha = Math.max(0, alpha);
+    R.drawText(ctx, b.text, Math.round((W - tw) / 2 + slide) + 2, 36, scale, "#100c1c");
+    R.drawText(ctx, b.text, Math.round((W - tw) / 2 + slide), 34, scale, PAL.goldHi);
+    ctx.globalAlpha = 1;
+    if (b.t > b.life) this.banner = null;
+  }
+
+  ctx.restore();
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+};
+
+Stage.start = function () {
+  if (this.running) return;
+  this.running = true;
+  var self = this;
+  (function loop(now) {
+    if (!self.running) return;
+    try { self.frame(now || 0); } catch (e) { /* never let a frame kill the game */ }
+    requestAnimationFrame(loop);
+  })(0);
+};
+
+Stage.stop = function () { this.running = false; };
+
+/* ---------------------------------------------------------------- portraits
+
+   The same renderer at bust scale, baked into a four-frame strip and
+   handed to CSS as a data URI so the portraits breathe and blink
+   wherever the game drops them in with innerHTML.                     */
+
+function bustStrip(artKey) {
+  var S = 26, frames = 4;
+  var cv = document.createElement("canvas");
+  cv.width = S * frames; cv.height = S;
+  var ctx = cv.getContext("2d");
+  ctx.imageSmoothingEnabled = false;
+  var P = new Painter(ctx);
+  var pal = paletteFor(artKey);
+
+  for (var fr = 0; fr < frames; fr++) {
+    ctx.save();
+    ctx.translate(fr * S, 0);
+
+    /* framed background tinted by the art */
+    var accent = PAL[artKey] || PAL.neutral;
+    ctx.fillStyle = "#1a1336";
+    ctx.fillRect(0, 0, S, S);
+    ctx.fillStyle = accent;
+    ctx.globalAlpha = 0.16;
+    ctx.fillRect(0, 0, S, S);
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = accent;
+    ctx.fillRect(0, 0, S, 1); ctx.fillRect(0, S - 1, S, 1);
+    ctx.fillRect(0, 0, 1, S); ctx.fillRect(S - 1, 0, 1, S);
+
+    var breathe = (fr === 1) ? -1 : 0;
+    var cx = S / 2, hy = 11 + breathe;
+
+    /* shoulders */
+    var giM = pal.bare ? pal.skin : pal.gi;
+    P.rect(cx - 10, hy + 6, 20, S - hy - 6, giM.out);
+    P.rect(cx - 9, hy + 7, 18, S - hy - 7, giM.base);
+    P.rect(cx - 9, hy + 7, 6, S - hy - 7, giM.hi);
+    if (!pal.bare) {
+      P.rect(cx - 2, hy + 7, 4, S - hy - 7, pal.trim.base);
+    }
+    P.rect(cx - 10, S - 4, 20, 3, pal.belt.base);
+
+    /* neck and head */
+    P.rect(cx - 2, hy + 3, 4, 5, pal.skin.lo);
+    P.ball(cx, hy, 7, pal.skin);
+
+    /* hair */
+    ctx.fillStyle = pal.hair.base;
+    ctx.fillRect(cx - 7, hy - 8, 14, 4);
+    ctx.fillStyle = pal.hair.lo;
+    ctx.fillRect(cx - 7, hy - 8, 14, 1);
+
+    if (pal.band) {
+      P.rect(cx - 8, hy - 5, 16, 3, pal.band.out);
+      P.rect(cx - 8, hy - 5, 16, 2, pal.band.base);
+    }
+
+    /* eyes: closed on the blink frame */
+    ctx.fillStyle = "#161020";
+    if (fr === 2) {
+      ctx.fillRect(cx - 4, hy, 3, 1);
+      ctx.fillRect(cx + 2, hy, 3, 1);
+    } else {
+      ctx.fillRect(cx - 4, hy - 1, 2, 2);
+      ctx.fillRect(cx + 3, hy - 1, 2, 2);
+    }
+    /* brow and mouth give the face some intent */
+    ctx.fillStyle = pal.hair.base;
+    ctx.fillRect(cx - 5, hy - 3, 3, 1);
+    ctx.fillRect(cx + 3, hy - 3, 3, 1);
+    ctx.fillStyle = pal.skin.lo;
+    ctx.fillRect(cx - 2, hy + 4, 4, 1);
+
+    ctx.restore();
+  }
+  return cv.toDataURL();
+}
+
+var BUST_CACHE = {};
+function bustFor(key) {
+  if (!BUST_CACHE[key]) BUST_CACHE[key] = bustStrip(key);
+  return BUST_CACHE[key];
+}
+
+R.sprites = {
+  Stage: Stage, Fighter: Fighter, POSES: POSES,
+  bustFor: bustFor, paletteFor: paletteFor, W: W, H: H, GROUND: GROUND
+};
+
+})();
+</script>
+
+<script>
+/* ================================================================ 6. wiring
+
+   The game's own functions are left alone and wrapped from the outside.
+   Every hook is defensive: if a function it expects is missing, or a
+   hook throws, the original still runs and the duel continues.        */
+(function () {
+"use strict";
+
+var R = window.MOTW_RETRO;
+if (!R || !R.sprites) return;
+
+var Stage = R.sprites.Stage;
+var AUD = R.audio;
+var PAL = R.PAL;
+
+function safe(fn) { try { return fn(); } catch (e) { return undefined; } }
+
+/* Replace the original function with one that calls it and then ours.
+   `pre` runs first and may return context for `post`.                 */
+function wrap(name, pre, post) {
+  var orig = window[name];
+  if (typeof orig !== "function") return false;
+  window[name] = function () {
+    var ctx;
+    if (pre) ctx = safe(pre.bind(null, arguments));
+    var out = orig.apply(this, arguments);
+    if (post) safe(post.bind(null, arguments, ctx, out));
+    return out;
+  };
+  return true;
+}
+
+/* ---------------------------------------------------------------- reaching
+   into the game
+
+   The game declares its functions with `function`, so those land on
+   window and can be wrapped. But the match state is `let M` and the card
+   index is `const CARD`, and top-level let/const bindings live in the
+   global lexical scope, NOT on window. window.M is permanently
+   undefined. An indirect eval runs in global scope and can see them, so
+   that is how the card table is read, once, at load.
+
+   The live match state is not read that way at all. Instead the two
+   fighter objects are captured as they are handed to startDuel, and
+   range and top position are read back off the DOM the game already
+   renders. That keeps the hooks working even if eval is unavailable. */
+
+function G(expr) {
+  try { return (0, eval)(expr); } catch (e) { return undefined; }
+}
+
+var CARDDB = G("typeof CARD !== 'undefined' ? CARD : undefined");
+
+var GAME = { p0: null, p1: null };
+
+function idxOf(f) {
+  return f === GAME.p0 ? 0 : f === GAME.p1 ? 1 : -1;
+}
+
+function rangeFromDOM() {
+  var z = document.querySelector("#rangeviz .zone.on");
+  return z ? z.id.replace("zone-", "") : null;
+}
+
+function topFromDOM() {
+  var t = document.getElementById("topnote");
+  if (!t) return null;
+  var s = t.textContent || "";
+  if (!/top position/.test(s)) return null;
+  if (GAME.p0 && s.indexOf(GAME.p0.name) === 0) return 0;
+  if (GAME.p1 && s.indexOf(GAME.p1.name) === 0) return 1;
+  return null;
+}
+
+/* ---------------------------------------------------------------- portraits */
+
+if (typeof window.portraitSVG === "function") {
+  window.portraitSVG = function (key) {
+    return '<span class="bust" style="background-image:url(' +
+      R.sprites.bustFor(key || "mma") + ')"></span>';
+  };
+}
+
+/* ---------------------------------------------------------------- which art
+
+   The stage needs an art key per fighter. The game already computes one
+   on the deck stats, so reuse exactly the same rule the portraits use. */
+function artOf(f) {
+  var s = f && f.stats;
+  if (!s) return "mma";
+  if (s.mastery) return s.mastery;
+  if (s.arts > 1) return "mma";
+  return s.topArt || "mma";
+}
+
+/* ---------------------------------------------------------------- card reads
+
+   Map a card onto a pose and a sound. The game exposes isKick(), so
+   striking cards split into hands and legs the same way the rules do. */
+function poseForCard(c) {
+  if (!c) return { pose: "jab", sfx: "punch", lunge: 4, power: 3 };
+  var kick = typeof window.isKick === "function" ? safe(function () { return window.isKick(c); }) : false;
+  var dmg = c.dmg || 0;
+
+  switch (c.type) {
+    case "strike":
+      if (kick) {
+        if (/low|leg|calf|teep|push/i.test(c.name)) return { pose: "lowkick", sfx: "kick", lunge: 5, power: dmg };
+        if (/knee|clinch/i.test(c.name)) return { pose: "knee", sfx: "kick", lunge: 6, power: dmg };
+        return { pose: "highkick", sfx: "kick", lunge: 6, power: dmg };
+      }
+      if (/upper/i.test(c.name)) return { pose: "uppercut", sfx: "punch", lunge: 4, power: dmg };
+      if (/hook|elbow/i.test(c.name)) return { pose: "hook", sfx: "punch", lunge: 4, power: dmg };
+      if (dmg >= 4) return { pose: "cross", sfx: "punch", lunge: 6, power: dmg };
+      return { pose: "jab", sfx: "punch", lunge: 4, power: dmg };
+    case "guard":
+      return { pose: "block", sfx: "guard", lunge: 0 };
+    case "move":
+      return { pose: "idle", sfx: "move", lunge: 0 };
+    case "grapple":
+      return { pose: "grapple", sfx: "throw", lunge: 7, power: dmg };
+    case "sub":
+      return { pose: "groundTop", sfx: "sub", lunge: 0, power: dmg };
+    default:
+      return { pose: "guard", sfx: "card", lunge: 0 };
+  }
+}
+
+/* ---------------------------------------------------------------- hooks */
+
+/* Capture the fighters before the original body runs, because it calls
+   render() on its way out and the render hook needs them already set. */
+wrap("startDuel", function (args) {
+  GAME.p0 = args[0];
+  GAME.p1 = args[1];
+  Stage.mount();
+  if (!Stage.cv) return;
+  Stage.setFighters(artOf(GAME.p0), artOf(GAME.p1));
+  Stage.start();
+}, function () {
+  installGhostBars();
+  if (AUD) {
+    AUD.unlock();
+    AUD.sfx("bell");
+    setTimeout(function () { AUD.play(AUD.music.battle); }, 700);
+  }
+});
+
+wrap("render", null, function () {
+  if (!Stage.cv || !GAME.p0) return;
+  var range = rangeFromDOM();
+  if (range) Stage.layout(range, topFromDOM());
+  syncGhostBars();
+});
+
+wrap("bannerShow", function (args) {
+  var t = String(args[0] || "");
+  Stage.showBanner(t);
+  if (AUD) {
+    if (/fight/i.test(t)) AUD.sfx("bell");
+    else AUD.sfx("select");
+  }
+}, function (args) {
+  /* swap the DOM banner text for bitmap type */
+  var b = document.getElementById("banner");
+  if (!b) return;
+  var txt = String(args[0] || "").toUpperCase();
+  b.innerHTML = "";
+  b.appendChild(R.textCanvas(txt, 5, PAL.goldHi, PAL.goldLo, "#100c1c"));
+});
+
+wrap("playCard", function (args) {
+  var f = args[0], idx = args[1];
+  if (!f) return;
+  var me = idxOf(f);
+  if (me < 0) return;
+  var id = f.hand && f.hand[idx];
+  var c = CARDDB ? CARDDB[id] : null;
+  var info = poseForCard(c);
+  var fighter = Stage.fighters[me];
+  if (fighter) fighter.act(info.pose, info.pose === "groundTop" ? 500 : 380, info.lunge);
+  if (AUD) {
+    AUD.sfx("card");
+    /* the impact sound lands with the limb, not with the card click */
+    setTimeout(function () { AUD.sfx(info.sfx, info.power || 3); }, 120);
+  }
+  return { me: me, info: info };
+});
+
+/* Damage is where the hit actually reads. Compare HP either side of the
+   original call so blocked hits and real hits look different.          */
+wrap("applyDamage", function (args) {
+  var def = args[1];
+  return { hpBefore: def ? def.hp : 0, guardBefore: def ? def.guard : 0 };
+}, function (args, ctx) {
+  if (!ctx || !Stage.cv) return;
+  var def = args[1];
+  var idx = idxOf(def);
+  if (idx < 0) return;
+  var lost = ctx.hpBefore - def.hp;
+
+  setTimeout(function () {
+    safe(function () {
+      if (lost > 0) {
+        Stage.hit(idx, lost);
+        if (AUD) AUD.sfx(lost >= 5 ? "punch" : "spark", lost);
+      } else if (ctx.guardBefore > 0) {
+        var f = Stage.fighters[idx];
+        if (f) f.act("block", 260, 0);
+        Stage.spark(idx, "hit");
+        if (AUD) AUD.sfx("block");
+      }
+    });
+  }, 130);
+});
+
+wrap("showResult", function (args) {
+  var winner = args[0], loser = args[1];
+  if (Stage.cv) {
+    var li = idxOf(loser);
+    if (li >= 0 && Stage.fighters[li]) {
+      Stage.fighters[li].action = null;
+      Stage.fighters[li].setBase("ko");
+    }
+    var wi = idxOf(winner);
+    if (wi >= 0 && Stage.fighters[wi]) Stage.fighters[wi].setBase("idle");
+  }
+}, function (args) {
+  var winner = args[0];
+  /* the finish text tells us how it ended, so read it rather than
+     guessing at the match state */
+  var k = document.querySelector(".kotext");
+  var txt = k ? (k.textContent || "K.O.").toUpperCase() : "K.O.";
+  if (k) {
+    k.innerHTML = "";
+    k.appendChild(R.textCanvas(txt, 6, PAL.red, "#5a120c", "#100c1c"));
+  }
+  if (AUD) {
+    AUD.stop();
+    AUD.sfx(/TAP|SUB/.test(txt) ? "tap" : "ko");
+    setTimeout(function () {
+      AUD.play(winner && winner.human ? AUD.music.win : AUD.music.lose);
+    }, 900);
+  }
+});
+
+wrap("showMenu", null, function () {
+  Stage.stop();
+  GAME.p0 = GAME.p1 = null;
+  if (AUD) AUD.play(AUD.music.menu);
+});
+
+/* ---------------------------------------------------------------- ghost bars
+
+   The lag bar behind the health bar: the classic tell that you just
+   took a big hit rather than a small one.                             */
+function installGhostBars() {
+  var bars = document.querySelectorAll("#duel .hpbar");
+  for (var i = 0; i < bars.length; i++) {
+    if (bars[i].querySelector(".hpghost")) continue;
+    var g = document.createElement("div");
+    g.className = "hpghost";
+    bars[i].insertBefore(g, bars[i].firstChild);
+  }
+}
+
+function syncGhostBars() {
+  for (var i = 0; i < 2; i++) {
+    var fill = document.getElementById("hp-" + i);
+    if (!fill) continue;
+    var ghost = fill.parentElement.querySelector(".hpghost");
+    if (ghost) ghost.style.width = fill.style.width;
+  }
+}
+
+/* ---------------------------------------------------------------- pixel titles
+
+   Any h1 the game renders is replaced with bitmap type. Long titles are
+   split at the space nearest the middle so "Masters of the Way" reads as
+   a two-line arcade logo rather than one thin strip.                   */
+
+function pixelTitle(h1) {
+  if (!h1 || h1.dataset.pixdone) return;
+  var raw = (h1.textContent || "").trim().toUpperCase();
+  if (!raw) return;
+
+  var lines = [raw];
+  if (raw.length > 12 && raw.indexOf(" ") > 0) {
+    var mid = raw.length / 2, best = -1;
+    for (var i = 0; i < raw.length; i++) {
+      if (raw[i] !== " ") continue;
+      if (best < 0 || Math.abs(i - mid) < Math.abs(best - mid)) best = i;
+    }
+    if (best > 0) lines = [raw.slice(0, best), raw.slice(best + 1)];
+  }
+
+  var box = document.createElement("div");
+  box.className = "pixlogo";
+  box.style.cssText = "text-align:center;margin:26px 0 4px;line-height:0";
+  lines.forEach(function (ln, i) {
+    var scale = lines.length > 1 && i === 1 ? 4 : 6;
+    var cv = R.textCanvas(ln, scale,
+      i === 0 ? PAL.goldHi : PAL.ink,
+      i === 0 ? PAL.goldLo : PAL.panelLo, "#100c1c");
+    cv.style.cssText = "max-width:92vw;height:auto;display:block;margin:0 auto";
+    box.appendChild(cv);
+  });
+  h1.parentNode.insertBefore(box, h1);
+  /* set last: if anything above threw, the plain h1 stays visible */
+  h1.dataset.pixdone = "1";
+}
+
+function pixelifyTitles() {
+  var hs = document.querySelectorAll("#app h1");
+  for (var i = 0; i < hs.length; i++) safe(pixelTitle.bind(null, hs[i]));
+}
+
+/* The game rebuilds #app wholesale on every screen change, so watch it
+   rather than wrapping each of the six screen functions. */
+var appEl = document.getElementById("app");
+if (appEl && window.MutationObserver) {
+  new MutationObserver(function () { pixelifyTitles(); })
+    .observe(appEl, { childList: true, subtree: true });
+}
+
+/* ---------------------------------------------------------------- ui sounds */
+
+document.addEventListener("pointerover", function (e) {
+  var t = e.target.closest && e.target.closest(".menu-btn,.fighter-card,.card.playable,.cnt-btn");
+  if (t && AUD) AUD.sfx("hover");
+}, true);
+
+document.addEventListener("click", function (e) {
+  var t = e.target.closest && e.target.closest(".menu-btn,.fighter-card,.back,#endturn,.cnt-btn");
+  if (t && AUD) AUD.sfx("select");
+}, true);
+
+/* ---------------------------------------------------------------- sound toggle */
+
+var btn = document.createElement("button");
+btn.id = "sndbtn";
+function label() { btn.textContent = (AUD && AUD.isMuted()) ? "SOUND OFF" : "SOUND ON"; }
+label();
+btn.onclick = function () {
+  if (!AUD) return;
+  AUD.unlock();
+  AUD.setMuted(!AUD.isMuted());
+  label();
+};
+document.body.appendChild(btn);
+
+/* ---------------------------------------------------------------- boot
+
+   The game's own boot() has already run by the time this block is
+   parsed, so decorate whatever is on screen right now.                */
+pixelifyTitles();
+Stage.mount();
+
+window.addEventListener("pointerdown", function once() {
+  window.removeEventListener("pointerdown", once);
+  var duel = document.getElementById("duel");
+  var inDuel = duel && duel.style.display === "block";
+  if (AUD) AUD.play(inDuel ? AUD.music.battle : AUD.music.menu);
+});
+
+})();
+</script>
+
+<script>
+/* ================================================================ 7. preview
+
+   Only runs when this file is opened on its own. Inside index.html the
+   game's #duel element exists, this block detects it and does nothing,
+   so the same file is both the patch and its own test harness.        */
+(function () {
+"use strict";
+
+if (document.getElementById("duel")) return;      /* embedded in the game */
+
+var R = window.MOTW_RETRO;
+if (!R || !R.sprites) return;
+var Stage = R.sprites.Stage, AUD = R.audio, PAL = R.PAL;
+
+var ARTS = ["boxing", "karate", "taekwondo", "muaythai", "judo", "bjj", "mma"];
+var POSES = ["idle", "guard", "jab", "cross", "hook", "uppercut", "highkick",
+             "lowkick", "knee", "grapple", "block", "hit", "groundTop", "groundBottom", "ko"];
+var SFXS = ["punch", "kick", "block", "guard", "throw", "sub", "tap",
+            "card", "move", "bell", "ko", "select", "hover", "spark"];
+
+var wrap = document.createElement("div");
+wrap.className = "screen";
+wrap.innerHTML =
+  '<div id="pv-logo" style="text-align:center;margin:18px 0 10px;line-height:0"></div>' +
+  '<p class="sub">Retro layer preview &mdash; open <b>index.html</b> for the game itself.</p>' +
+  '<div id="arena"><div id="pv-note" style="font-size:13px;color:' + PAL.dim + '"></div></div>' +
+  '<h2>Stance and technique</h2><div id="pv-poses"></div>' +
+  '<h2>Fighters</h2><div id="pv-arts"></div>' +
+  '<h2>Sound effects</h2><div id="pv-sfx"></div>' +
+  '<h2>Music</h2><div id="pv-music"></div>' +
+  '<h2>Portraits</h2><div id="pv-busts" style="display:flex;gap:12px;flex-wrap:wrap;justify-content:center"></div>';
+document.body.appendChild(wrap);
+
+var logo = document.getElementById("pv-logo");
+var a = R.textCanvas("MASTERS", 6, PAL.goldHi, PAL.goldLo, "#100c1c");
+var b = R.textCanvas("OF THE WAY", 4, PAL.ink, PAL.panelLo, "#100c1c");
+a.style.cssText = b.style.cssText = "max-width:92vw;height:auto;display:block;margin:0 auto";
+logo.appendChild(a); logo.appendChild(b);
+
+Stage.mount();
+Stage.setFighters("karate", "muaythai");
+Stage.start();
+Stage.showBanner("Fight");
+
+function row(host, items, fn, label) {
+  var d = document.getElementById(host);
+  d.style.cssText = "display:flex;gap:6px;flex-wrap:wrap;justify-content:center;margin-bottom:6px";
+  items.forEach(function (it) {
+    var btn = document.createElement("button");
+    btn.textContent = label ? label(it) : it;
+    btn.style.cssText =
+      "padding:7px 10px;font:inherit;font-size:12px;text-transform:uppercase;letter-spacing:1px;" +
+      "border:none;background:" + PAL.panel + ";color:" + PAL.ink + ";" +
+      "box-shadow:inset 2px 2px 0 " + PAL.panelHi + ",inset -2px -2px 0 " + PAL.panelLo +
+      ",0 0 0 2px " + PAL.edge + ";";
+    btn.onclick = function () { fn(it); };
+    d.appendChild(btn);
+  });
+}
+
+var range = "far";
+row("pv-poses", POSES, function (p) {
+  var f0 = Stage.fighters[0], f1 = Stage.fighters[1];
+  if (p === "groundTop" || p === "groundBottom" || p === "ko") {
+    Stage.layout("ground", 0);
+    f0.setBase(p === "groundBottom" ? "groundBottom" : "groundTop");
+    f1.setBase(p === "ko" ? "ko" : (p === "groundBottom" ? "groundTop" : "groundBottom"));
+  } else {
+    range = (p === "jab" || p === "cross" || p === "hook" || p === "uppercut" || p === "knee")
+      ? "close" : "far";
+    Stage.layout(range, null);
+    f0.act(p, 900, /kick|jab|cross|hook|upper|knee|grapple/.test(p) ? 6 : 0);
+    if (/kick|jab|cross|hook|upper|knee|grapple/.test(p)) {
+      setTimeout(function () { Stage.hit(1, p === "highkick" ? 6 : 3); }, 140);
+    }
+  }
+});
+
+row("pv-arts", ARTS, function (art) {
+  Stage.setFighters(art, Stage.fighters[1].art);
+  Stage.layout("far", null);
+  Stage.showBanner(art);
+});
+
+row("pv-sfx", SFXS, function (s) { AUD.unlock(); AUD.sfx(s, 6); });
+
+row("pv-music", ["menu", "battle", "win", "lose", "stop"], function (m) {
+  AUD.unlock();
+  if (m === "stop") AUD.stop(); else AUD.play(AUD.music[m]);
+});
+
+var busts = document.getElementById("pv-busts");
+ARTS.forEach(function (art) {
+  var cell = document.createElement("div");
+  cell.style.cssText = "text-align:center;font-size:11px;text-transform:uppercase;color:" + PAL.dim;
+  var pic = document.createElement("span");
+  pic.style.cssText = "display:block;width:78px;height:78px;margin-bottom:4px";
+  pic.innerHTML = '<span class="bust" style="background-image:url(' + R.sprites.bustFor(art) + ')"></span>';
+  cell.appendChild(pic);
+  cell.appendChild(document.createTextNode(art));
+  busts.appendChild(cell);
+});
+
+document.getElementById("pv-note").textContent =
+  "Click anything to enable audio. Range changes as you pick a technique.";
+
+})();
+</script>
+
 </body>
 </html>
