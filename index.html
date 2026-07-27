@@ -2871,6 +2871,16 @@ else showMenu();
 "use strict";
 
 if (window.__MOTW_RETRO__) return;
+
+/* Escape hatch. Add ?noretro to the URL and this whole layer stands
+   down, leaving the original game untouched. If something misbehaves,
+   loading the same page with and without that flag says immediately
+   whether this file is responsible. */
+if (/[?&]noretro\b/.test(location.search)) {
+  window.__MOTW_RETRO_OFF__ = true;
+  return;
+}
+
 window.__MOTW_RETRO__ = true;
 
 /* ================================================================ 1. palette
@@ -2927,7 +2937,11 @@ body {
 }
 img, canvas, .bust { image-rendering: pixelated; image-rendering: crisp-edges; }
 
-/* ---- CRT veil: scanlines plus a soft vignette, pointer-transparent ---- */
+/* ---- CRT veil: scanlines plus a soft vignette, pointer-transparent ----
+   Deliberately no mix-blend-mode. A blended full-viewport fixed layer
+   forces the compositor to re-blend the whole screen on every animated
+   frame, which is a well-known way to bring a phone GPU to its knees.
+   The scanlines are already dark; plain alpha gets the same look. */
 #crt {
   position: fixed; inset: 0; z-index: 9000; pointer-events: none;
   background:
@@ -2936,7 +2950,6 @@ img, canvas, .bust { image-rendering: pixelated; image-rendering: crisp-edges; }
       rgba(0,0,0,0)   1px, rgba(0,0,0,0)   3px),
     radial-gradient(ellipse at 50% 50%,
       rgba(0,0,0,0) 55%, rgba(0,0,0,.42) 100%);
-  mix-blend-mode: multiply;
 }
 #crt.off { display: none; }
 
@@ -3241,6 +3254,8 @@ window.MOTW_RETRO = { drawText: drawText, textCanvas: textCanvas, textWidth: tex
    audio files to ship and no licences to clear.                        */
 (function () {
 "use strict";
+
+if (window.__MOTW_RETRO_OFF__) return;
 
 var A = {
   ctx: null, master: null, musicGain: null, sfxGain: null,
@@ -3644,9 +3659,29 @@ function playMusic(def) {
 
   A.timer = setInterval(function () {
     if (!A.song) return;
+
+    /* Never schedule into a clock that is not moving. A suspended or
+       interrupted context freezes currentTime, so every tick would queue
+       more notes that can never fire, and they pile up without limit. */
+    if (!A.ctx || A.ctx.state !== "running") return;
+
     var spb = 60 / song.bpm / song.div;
-    /* schedule a short way ahead so timing survives a busy main thread */
-    while (A.nextTime < A.ctx.currentTime + 0.18) {
+    var now = A.ctx.currentTime;
+
+    /* If we have fallen behind - a backgrounded tab throttles this timer
+       to about once a second while the audio clock keeps running - skip
+       forward instead of trying to play the gap note by note. Catching
+       up honestly would mean scheduling thousands of nodes in one tick. */
+    if (A.nextTime < now - 0.25) {
+      var missed = Math.ceil((now - A.nextTime) / spb);
+      A.step += missed;
+      A.nextTime += missed * spb;
+    }
+
+    /* schedule a short way ahead so timing survives a busy main thread,
+       with a hard cap so this loop can never run away */
+    var guard = 0;
+    while (A.nextTime < now + 0.18 && guard++ < 32) {
       if (!song.loop && A.step >= song.length) { stopMusic(); return; }
       scheduleStep(song, A.step, A.nextTime);
       A.step++;
@@ -3956,11 +3991,19 @@ UNLOCK_EVENTS.forEach(function (e) {
   window.addEventListener(e, tryUnlock, true);
 });
 
-/* Coming back from a locked screen or another tab leaves the context
-   suspended (or "interrupted" on iOS); pick it back up. */
+/* Hand the clock back when the tab is hidden. Left running, the audio
+   clock keeps advancing while this page's timers are throttled, and the
+   scheduler wakes up with a large gap to account for. Suspending removes
+   the gap at the source, and it stops the phone burning battery on a
+   game nobody is looking at. */
 document.addEventListener("visibilitychange", function () {
-  if (!document.hidden && A.ctx && A.ctx.state !== "running" && A.ctx.resume) {
-    A.ctx.resume();
+  if (!A.ctx) return;
+  if (document.hidden) {
+    if (A.ctx.state === "running" && A.ctx.suspend) A.ctx.suspend();
+  } else {
+    if (A.ctx.state !== "running" && A.ctx.resume) A.ctx.resume();
+    /* resync so the scheduler does not try to replay the missing time */
+    A.nextTime = A.ctx.currentTime + 0.08;
     if (A.silent) { var p = A.silent.play(); if (p && p.catch) p.catch(function () {}); }
   }
 });
@@ -3978,6 +4021,8 @@ document.addEventListener("visibilitychange", function () {
    palette and a couple of accessory flags to tell them apart.          */
 (function () {
 "use strict";
+
+if (window.__MOTW_RETRO_OFF__) return;
 
 var R = window.MOTW_RETRO || (window.MOTW_RETRO = {});
 var PAL = R.PAL;
@@ -4941,9 +4986,13 @@ Stage.frame = function (now) {
 Stage.start = function () {
   if (this.running) return;
   this.running = true;
+  this.last = 0;
   var self = this;
   (function loop(now) {
     if (!self.running) return;
+    /* if the canvas has left the document there is nothing to draw and
+       nobody to stop us, so stop ourselves */
+    if (!self.cv || !self.cv.isConnected) { self.running = false; return; }
     try { self.frame(now || 0); } catch (e) { /* never let a frame kill the game */ }
     requestAnimationFrame(loop);
   })(0);
