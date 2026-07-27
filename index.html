@@ -2937,21 +2937,10 @@ body {
 }
 img, canvas, .bust { image-rendering: pixelated; image-rendering: crisp-edges; }
 
-/* ---- CRT veil: scanlines plus a soft vignette, pointer-transparent ----
-   Deliberately no mix-blend-mode. A blended full-viewport fixed layer
-   forces the compositor to re-blend the whole screen on every animated
-   frame, which is a well-known way to bring a phone GPU to its knees.
-   The scanlines are already dark; plain alpha gets the same look. */
-#crt {
-  position: fixed; inset: 0; z-index: 9000; pointer-events: none;
-  background:
-    repeating-linear-gradient(to bottom,
-      rgba(0,0,0,.20) 0px, rgba(0,0,0,.20) 1px,
-      rgba(0,0,0,0)   1px, rgba(0,0,0,0)   3px),
-    radial-gradient(ellipse at 50% 50%,
-      rgba(0,0,0,0) 55%, rgba(0,0,0,.42) 100%);
-}
-#crt.off { display: none; }
+/* The CRT veil used to be a full-viewport fixed overlay. It is now drawn
+   inside the arena canvas instead. A page-covering element is the first
+   thing to suspect when scrolling or tapping goes strange, and the
+   scanlines only really earn their keep over the pixel art anyway. */
 
 /* ---- bevelled arcade panels ---- */
 .fpanel, #arena, .menu-btn, .fighter-card, .logview, .card, #builder-stats {
@@ -3037,13 +3026,15 @@ h2 { letter-spacing: 3px; text-shadow: 2px 2px 0 ${PAL.edge}; }
 }
 
 /* ---- the sprite stage ----
-   Capped at a 2x pixel scale. Left at width:100% a 256px-wide canvas
-   blows up to ~3.5x on desktop and pushes the hand off the screen. */
+   Sized in whole multiples of the 256px canvas so the pixels stay
+   square: 1x is 92px tall, 2x is 184px. Small is the default, because
+   the cards are the game and the arena is the garnish. */
 #stage-wrap {
-  position: relative; width: 100%; max-width: 512px; margin: 0 auto 6px;
+  position: relative; width: 100%; max-width: 256px; margin: 0 auto 6px;
   box-shadow: 0 0 0 2px ${PAL.edge}; line-height: 0;
 }
 #stage { width: 100%; height: auto; display: block; }
+#arena.stage-lg #stage-wrap { max-width: 512px; }
 #arena.stage-hidden #stage-wrap { display: none; }
 
 #stagetoggle {
@@ -3085,15 +3076,12 @@ h2 { letter-spacing: 3px; text-shadow: 2px 2px 0 ${PAL.edge}; }
 
 @media (prefers-reduced-motion: reduce) {
   .bust { animation: none; }
-  #crt { background: none; }
 }
 
 /* ---- mobile ----
    Vertical space is the scarce resource: the hand has to be reachable
    without scrolling past the fighters. The stage shrinks first. */
 @media (max-width: 560px) {
-  body { touch-action: manipulation; }
-  #stage-wrap { max-width: 100%; }
   /* the toggle moves out of the corner and gets a real tap target */
   #stagetoggle { padding: 6px 10px; font-size: 12px; }
   /* keep the sound button clear of the full-width End Turn button */
@@ -3102,15 +3090,11 @@ h2 { letter-spacing: 3px; text-shadow: 2px 2px 0 ${PAL.edge}; }
     padding: 6px 9px; font-size: 11px; opacity: .85;
   }
   .pixlogo { margin: 14px 0 4px !important; }
-  #crt { background:
-    repeating-linear-gradient(to bottom,
-      rgba(0,0,0,.14) 0px, rgba(0,0,0,.14) 1px,
-      rgba(0,0,0,0)   1px, rgba(0,0,0,0)   2px); }
 }
 
-/* Short landscape phones: the arena is the first thing to go. */
+/* Short landscape phones: the arena is the first thing to give ground. */
 @media (max-height: 460px) and (max-width: 900px) {
-  #stage-wrap { max-width: 320px; }
+  #arena.stage-lg #stage-wrap { max-width: 256px; }
   h2 { margin: 12px 0 6px; }
 }
 `;
@@ -3119,10 +3103,6 @@ var st = document.createElement("style");
 st.id = "retro-css";
 st.textContent = CSS;
 document.head.appendChild(st);
-
-var crt = document.createElement("div");
-crt.id = "crt";
-document.body.appendChild(crt);
 
 /* ================================================================ 3. bitmap font
 
@@ -3978,17 +3958,23 @@ window.MOTW_RETRO.audio = api;
 var UNLOCK_EVENTS = ["touchend", "touchstart", "pointerdown", "pointerup",
                      "mousedown", "click", "keydown"];
 
+/* passive: a touchstart listener that is not declared passive makes the
+   browser treat every touch as potentially scroll-cancelling, so it has
+   to wait for this handler before it will move the page. That is enough
+   to make scrolling feel broken. Nothing here calls preventDefault. */
+var LISTEN_OPTS = { capture: true, passive: true };
+
 function tryUnlock() {
   unlock();
   if (A.ctx && A.ctx.state === "running") {
     UNLOCK_EVENTS.forEach(function (e) {
-      window.removeEventListener(e, tryUnlock, true);
+      window.removeEventListener(e, tryUnlock, LISTEN_OPTS);
     });
   }
 }
 
 UNLOCK_EVENTS.forEach(function (e) {
-  window.addEventListener(e, tryUnlock, true);
+  window.addEventListener(e, tryUnlock, LISTEN_OPTS);
 });
 
 /* Hand the clock back when the tab is hidden. Left running, the audio
@@ -4833,23 +4819,33 @@ Stage.mount = function () {
   this.P = new Painter(this.ctx);
   this.bg = buildBackdrop(this.theme || "karate");
 
-  /* Let the arena be folded away. On a short screen the cards matter
-     more than the fighters, and that should be the player's call. */
-  var hidden = false;
-  try { hidden = localStorage.getItem("motw-stage-hidden") === "1"; } catch (e) {}
+  /* How big the arena is should be the player's call, not mine. Three
+     states, cycled by one button and remembered: small, large, gone. */
+  var SIZES = ["sm", "lg", "off"];
+  var LABELS = { sm: "arena · small", lg: "arena · large", off: "arena · off" };
+  var size = "sm";
+  try {
+    var saved = localStorage.getItem("motw-stage-size");
+    if (SIZES.indexOf(saved) >= 0) size = saved;
+  } catch (e) {}
+
   var tog = document.createElement("button");
   tog.id = "stagetoggle";
   var self = this;
+
   function paint() {
-    arena.classList.toggle("stage-hidden", hidden);
-    tog.textContent = hidden ? "show arena" : "hide arena";
-    self.visible = !hidden;
+    arena.classList.toggle("stage-lg", size === "lg");
+    arena.classList.toggle("stage-hidden", size === "off");
+    tog.textContent = LABELS[size];
+    self.visible = size !== "off";
   }
+
   tog.onclick = function () {
-    hidden = !hidden;
-    try { localStorage.setItem("motw-stage-hidden", hidden ? "1" : "0"); } catch (e) {}
+    size = SIZES[(SIZES.indexOf(size) + 1) % SIZES.length];
+    try { localStorage.setItem("motw-stage-size", size); } catch (e) {}
     paint();
   };
+
   arena.insertBefore(tog, arena.firstChild);
   paint();
   return true;
@@ -4981,6 +4977,24 @@ Stage.frame = function (now) {
 
   ctx.restore();
   ctx.setTransform(1, 0, 0, 1, 0, 0);
+
+  /* CRT veil, confined to the arena. Every other scanline plus a soft
+     darkening at the edges: cheap here, and it lands on the pixel art
+     where it actually reads instead of over the whole page. */
+  ctx.fillStyle = "rgba(0,0,0,.18)";
+  for (var ln = 0; ln < H; ln += 2) ctx.fillRect(0, ln, W, 1);
+  if (!this.vignette) {
+    var vg = document.createElement("canvas");
+    vg.width = W; vg.height = H;
+    var vc = vg.getContext("2d");
+    var rg = vc.createRadialGradient(W / 2, H / 2, H * 0.35, W / 2, H / 2, W * 0.62);
+    rg.addColorStop(0, "rgba(0,0,0,0)");
+    rg.addColorStop(1, "rgba(0,0,0,.45)");
+    vc.fillStyle = rg;
+    vc.fillRect(0, 0, W, H);
+    this.vignette = vg;
+  }
+  ctx.drawImage(this.vignette, 0, 0);
 };
 
 Stage.start = function () {
@@ -5484,13 +5498,13 @@ if (HAS_HOVER) {
   document.addEventListener("pointerover", function (e) {
     var t = e.target.closest && e.target.closest(".menu-btn,.fighter-card,.card.playable,.cnt-btn");
     if (t && AUD) AUD.sfx("hover");
-  }, true);
+  }, { capture: true, passive: true });
 }
 
 document.addEventListener("click", function (e) {
   var t = e.target.closest && e.target.closest(".menu-btn,.fighter-card,.back,#endturn,.cnt-btn");
   if (t && AUD) AUD.sfx("select");
-}, true);
+}, { capture: true, passive: true });
 
 /* ---------------------------------------------------------------- sound toggle */
 
