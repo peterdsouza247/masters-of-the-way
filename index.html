@@ -155,25 +155,28 @@
 
   /* hand */
   #handwrap { margin-top: 8px; }
+  #hand-label { color: var(--dim); font-size: 13px; margin: 0 0 6px; }
   #hand { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
   .card {
-    width: 138px; min-height: 148px; background: var(--panel);
+    width: 152px; min-height: 154px; background: var(--panel);
     border: 1px solid var(--border); border-radius: 9px; padding: 7px 9px;
     text-align: left; position: relative; color: var(--ink);
     display: flex; flex-direction: column; transition: transform .15s, border-color .15s, opacity .3s;
     border-top: 3px solid var(--dim);
   }
   .card .top { display: flex; justify-content: space-between; align-items: baseline; gap: 4px; }
-  .card .cname { font-size: 13.5px; line-height: 1.2; }
+  .card .cname { font-size: 14px; line-height: 1.25; font-weight: bold; }
   .card .ccost {
-    font-size: 15px; color: var(--gold); min-width: 18px; height: 22px; text-align: center;
+    font-size: 16px; color: var(--gold); min-width: 30px; text-align: right; white-space: nowrap;
   }
-  .card .cart { font-size: 10.5px; font-variant: small-caps; letter-spacing: 1px; margin: 1px 0 3px; }
-  .card .cranges { font-size: 10.5px; color: var(--dim); margin-bottom: 4px; }
-  .card .ctext { font-size: 12px; color: #c6bca8; flex: 1 1 auto; }
+  .card .cart { font-size: 11px; font-variant: small-caps; letter-spacing: 1px; margin: 3px 0; }
+  .card .cranges { font-size: 11px; color: var(--dim); margin-bottom: 5px; }
+  .card .ctext { font-size: 12.5px; color: #c6bca8; flex: 1 1 auto; }
   .card.playable { cursor: pointer; }
   .card.playable:hover { transform: translateY(-5px); border-color: var(--gold); }
-  .card.dead { opacity: .38; }
+  .card.dead { opacity: .78; cursor: help; }
+  .card.dead .card-reason { color: var(--gold); font-size: 11px; margin-top: 5px; }
+  #card-hint { min-height: 20px; color: var(--gold); font-size: 13px; text-align: center; margin-top: 6px; }
   button.card { font: inherit; }
   #controls { text-align: center; margin-top: 10px; }
   #endturn {
@@ -285,11 +288,13 @@
     body { font-size: 15px; }
     #duel { padding: 6px 6px 14px; }
     .fpanel { padding: 7px 9px; margin: 5px 0; }
-    .card { width: calc(33.33% - 6px); min-width: 0; min-height: 132px; padding: 6px 7px; }
-    .card .cname { font-size: 11.5px; }
-    .card .ctext { font-size: 10px; }
-    .card .cranges { font-size: 9.5px; }
-    .card .cart { font-size: 9.5px; }
+    #hand { flex-wrap: nowrap; justify-content: flex-start; overflow-x: auto; overscroll-behavior-x: contain;
+      scroll-snap-type: x proximity; padding: 4px 4px 12px; }
+    .card { flex: 0 0 min(44vw, 174px); min-width: 145px; min-height: 166px; padding: 8px 9px; scroll-snap-align: start; }
+    .card .cname { font-size: 13px; }
+    .card .ctext { font-size: 12px; }
+    .card .cranges, .card .cart { font-size: 10.5px; }
+    .card .ccost { font-size: 15px; }
     .zone { font-size: 10.5px; padding: 5px 2px; }
     .zone .who { font-size: 13px; }
     h1 { font-size: 24px; letter-spacing: 4px; }
@@ -390,7 +395,9 @@
   </div>
 
   <div id="handwrap">
+    <div id="hand-label"></div>
     <div id="hand"></div>
+    <div id="card-hint" role="status" aria-live="polite"></div>
     <div id="controls">
       <button id="endturn">End Turn</button>
       <button id="resetbtn" style="display:none">Reset stance</button>
@@ -887,12 +894,15 @@ function renderHand() {
   const f = M.p[M.active];
   const hand = $("hand");
   hand.innerHTML = "";
+  $("card-hint").textContent = "";
   const show = f.human && !M.over;
   $("handwrap").style.visibility = show ? "visible" : "hidden";
   if (!show) { $("stamina-pips").textContent = ""; return; }
+  $("hand-label").textContent = `Hand · ${f.hand.length} cards${f.hand.length > 1 && window.matchMedia("(max-width: 560px)").matches ? " · swipe to see more" : ""}`;
   f.hand.forEach((id, idx) => {
     const c = CARD[id];
-    const ok = canPlay(f, c);
+    const reason = playBlockReason(f, c);
+    const ok = !reason;
     const b = document.createElement("button");
     b.className = "card " + (ok ? "playable" : "dead");
     b.style.borderTopColor = ARTS[c.art].color;
@@ -900,15 +910,15 @@ function renderHand() {
       `<span class="top"><span class="cname">${c.name}</span><span class="ccost">${c.cost}◈</span></span>` +
       `<span class="cart" style="color:${ARTS[c.art].color}">${ARTS[c.art].name}${c.master ? " ✦" : ""}</span>` +
       `<span class="cranges">${c.ranges.map(cap).join(" · ")}${c.needTop ? " · top" : ""}</span>` +
-      `<span class="ctext">${c.text}</span>`;
-    b.setAttribute("aria-label", `Card ${idx + 1}: ${c.name}, ${ARTS[c.art].name}, cost ${c.cost}. ${c.text} ${ok ? "Playable." : "Not playable now."}`);
-    b.setAttribute("aria-disabled", ok ? "false" : "true");
+      `<span class="ctext">${c.text}</span>` +
+      (ok ? "" : `<span class="card-reason">Why unavailable?</span>`);
+    b.setAttribute("aria-label", `Card ${idx + 1}: ${c.name}, ${ARTS[c.art].name}, cost ${c.cost}. ${c.text} ${ok ? "Playable." : "Unavailable: " + reason + " Activate for explanation."}`);
     if (ok) b.onclick = () => {
       b.onclick = null;
       Sound.resume(); Sound.ui();
       b.classList.add("zoomout");
       setTimeout(() => playCard(f, idx), 170);
-    };
+    }; else b.onclick = () => { $("card-hint").textContent = `${c.name}: ${reason}`; };
     hand.appendChild(b);
   });
   $("stamina-pips").textContent = "◈".repeat(f.stamina) + "·".repeat(Math.max(0, 5 - f.stamina));
@@ -993,13 +1003,17 @@ function floater(panelId, text, color) {
 /* ================================================================ rules */
 
 function canPlay(f, c) {
-  if (M.over) return false;
-  if (c.cost > f.stamina) return false;
-  if (!c.ranges.includes(M.range)) return false;
+  return !playBlockReason(f, c);
+}
+
+function playBlockReason(f, c) {
+  if (M.over) return "The fight is over.";
+  if (c.cost > f.stamina) return `Needs ${c.cost} stamina; you have ${f.stamina}.`;
+  if (!c.ranges.includes(M.range)) return `Needs ${c.ranges.map(cap).join(" or ")} range; currently ${cap(M.range)}.`;
   const meIdx = M.p.indexOf(f);
-  if (c.needTop && (M.range !== "ground" || M.top !== meIdx)) return false;
-  if (c.fx && (c.fx.takedown || c.fx.takedownIfGrip) && M.range !== "close") return false;
-  return true;
+  if (c.needTop && M.top !== meIdx) return "You need top position on the ground.";
+  if (c.fx && (c.fx.takedown || c.fx.takedownIfGrip) && M.range !== "close") return "A takedown needs Close range.";
+  return null;
 }
 
 function draw(f, n) {
@@ -3030,13 +3044,14 @@ h2 { letter-spacing: 3px; text-shadow: 2px 2px 0 ${PAL.edge}; }
 #arena.stage-hidden #stage-wrap { display: none; }
 
 #stagetoggle {
-  position: absolute; top: 0; right: 0; z-index: 2;
-  padding: 3px 7px; font: inherit; font-size: 11px; letter-spacing: 1px;
+  display: block; min-height: 44px; margin: 0 0 8px auto;
+  padding: 9px 12px; font: inherit; font-size: 12px; letter-spacing: 1px;
   border: none; background: rgba(8,6,17,.72); color: ${PAL.gold};
   text-transform: uppercase; line-height: 1.4;
+  box-shadow: inset 1px 1px 0 ${PAL.panelHi}, inset -1px -1px 0 ${PAL.panelLo}, 0 0 0 2px ${PAL.edge};
 }
 #arena.stage-hidden #stagetoggle {
-  position: static; display: block; margin: 0 auto 6px;
+  margin: 0 auto 8px;
   background: ${PAL.panel};
   box-shadow: inset 1px 1px 0 ${PAL.panelHi}, inset -1px -1px 0 ${PAL.panelLo}, 0 0 0 2px ${PAL.edge};
 }
@@ -3074,8 +3089,7 @@ h2 { letter-spacing: 3px; text-shadow: 2px 2px 0 ${PAL.edge}; }
    Vertical space is the scarce resource: the hand has to be reachable
    without scrolling past the fighters. The stage shrinks first. */
 @media (max-width: 560px) {
-  /* the toggle moves out of the corner and gets a real tap target */
-  #stagetoggle { padding: 6px 10px; font-size: 12px; }
+  #stagetoggle { padding: 9px 12px; }
   /* keep the sound button clear of the full-width End Turn button */
   #sndbtn {
     bottom: auto; top: 6px; right: 6px;
@@ -4814,7 +4828,7 @@ Stage.mount = function () {
   /* How big the arena is should be the player's call, not mine. Three
      states, cycled by one button and remembered: small, large, gone. */
   var SIZES = ["sm", "lg", "off"];
-  var LABELS = { sm: "arena · small", lg: "arena · large", off: "arena · off" };
+  var LABELS = { sm: "Small", lg: "Large", off: "Off" };
   var size = window.matchMedia("(min-width: 561px)").matches ? "lg" : "sm";
   try {
     var saved = localStorage.getItem("motw-stage-size");
@@ -4828,8 +4842,9 @@ Stage.mount = function () {
   function paint() {
     arena.classList.toggle("stage-lg", size === "lg");
     arena.classList.toggle("stage-hidden", size === "off");
-    tog.textContent = LABELS[size];
-    tog.setAttribute("aria-label", "Animation window: " + LABELS[size] + ". Activate to change size.");
+    var next = SIZES[(SIZES.indexOf(size) + 1) % SIZES.length];
+    tog.textContent = "Animation: " + LABELS[size] + " → " + LABELS[next];
+    tog.setAttribute("aria-label", "Animation window is " + LABELS[size] + ". Activate to switch to " + LABELS[next] + ".");
     self.visible = size !== "off";
   }
 
