@@ -905,7 +905,7 @@ function renderHand() {
     const ok = !reason;
     const b = document.createElement("button");
     b.className = "card " + (ok ? "playable" : "dead");
-    b.style.borderTopColor = ARTS[c.art].color;
+    b.style.setProperty("--card-art", ARTS[c.art].color);
     b.innerHTML =
       `<span class="top"><span class="cname">${c.name}</span><span class="ccost">${c.cost}◈</span></span>` +
       `<span class="cart" style="color:${ARTS[c.art].color}">${ARTS[c.art].name}${c.master ? " ✦" : ""}</span>` +
@@ -1459,8 +1459,8 @@ function showMenu() {
         <button class="back" id="m-settings">settings</button>
         <button class="back" id="m-about">about</button>
       </div>
-      <div style="max-width:520px;margin:22px auto;color:var(--dim);font-size:14px">
-        <b style="color:var(--gold);font-weight:normal">Choose your way.</b>
+      <div class="menu-principle">
+        <b>Choose your way.</b>
         Make at least 75% of your art cards one style to unlock its passive and master techniques. Fundamentals don't count against you.
         Mix arts for a larger hand and more answers at Far, Close, and Ground.
         Whichever path you take, control the range or fight on your opponent's terms.
@@ -2884,9 +2884,8 @@ window.__MOTW_RETRO__ = true;
 
 /* ================================================================ 1. palette
 
-   A 16-bit console palette. Deeper, more saturated than the original
-   dojo-dark theme, with the hard highlight/shadow pairs that make
-   SNES-era UI read as embossed metal rather than flat CSS.            */
+   A 16-bit console palette. The bright art colours and arena retain
+   the arcade feel while the surrounding interface stays quiet.        */
 
 var PAL = {
   ink:    "#f6f2e2",
@@ -2915,9 +2914,9 @@ var PAL = {
 
 /* ================================================================ 2. stylesheet
 
-   Overrides the game's CSS variables, then adds the arcade furniture:
-   bevelled panels, segmented health bars, a CRT scanline veil, and
-   pixel-snapped rendering for every generated image.                  */
+   Overrides the game's CSS variables, then adds focused arcade details:
+   a strong primary action, segmented health bars, arena scanlines, and
+   pixel-snapped rendering for generated images.                        */
 
 var CSS = `
 :root {
@@ -2929,10 +2928,10 @@ var CSS = `
   --taekwondo:${PAL.taekwondo}; --neutral:${PAL.neutral};
 }
 body {
-  font-family: ui-monospace, "Lucida Console", "Courier New", monospace;
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
   background:
     radial-gradient(ellipse at 50% 0%, ${PAL.bg1} 0%, ${PAL.bg0} 70%) fixed;
-  letter-spacing: .3px;
+  letter-spacing: .1px;
 }
 img, canvas, .bust { image-rendering: pixelated; image-rendering: crisp-edges; }
 
@@ -2941,41 +2940,50 @@ img, canvas, .bust { image-rendering: pixelated; image-rendering: crisp-edges; }
    thing to suspect when scrolling or tapping goes strange, and the
    scanlines only really earn their keep over the pixel art anyway. */
 
-/* ---- bevelled arcade panels ---- */
+/* Let the arena and primary action carry the arcade frame. Other surfaces
+   use a quiet edge so long copy and card effects stay easy to scan. */
 .fpanel, #arena, .menu-btn, .fighter-card, .logview, .card, #builder-stats {
-  border-radius: 0 !important;
-  border: none !important;
-  box-shadow:
-    inset 2px 2px 0 ${PAL.panelHi},
-    inset -2px -2px 0 ${PAL.panelLo},
-    0 0 0 2px ${PAL.edge};
+  border-radius: 4px !important;
+  border: 1px solid ${PAL.panelHi} !important;
+  box-shadow: none;
   background: ${PAL.panel};
 }
-#arena { background: ${PAL.bg1}; position: relative; }
+#arena {
+  background: ${PAL.bg1}; position: relative;
+  border: 2px solid ${PAL.panelHi} !important;
+}
 .fpanel.active {
-  box-shadow:
-    inset 2px 2px 0 ${PAL.goldHi},
-    inset -2px -2px 0 ${PAL.goldLo},
-    0 0 0 2px ${PAL.edge},
-    0 0 14px rgba(255,211,77,.35);
+  border-color: ${PAL.gold} !important;
 }
 .menu-btn:hover, .fighter-card:hover {
   transform: none;
-  box-shadow:
-    inset 2px 2px 0 ${PAL.goldHi},
-    inset -2px -2px 0 ${PAL.goldLo},
-    0 0 0 2px ${PAL.edge};
+  border-color: ${PAL.gold} !important;
 }
 
-/* ---- headings and buttons: chunky, uppercase, hard drop shadow ---- */
+/* Pixel lettering stays on the title and arena banner. Compact headings
+   retain an arcade accent; instructions and controls use readable type. */
 h1, h2, .art-head, #endturn, .frow .style, .card .cart {
+  font-family: ui-monospace, "Lucida Console", "Courier New", monospace;
   font-variant: normal !important;
   text-transform: uppercase;
   font-weight: bold;
 }
 /* only hidden once its bitmap replacement is actually in place */
 h1[data-pixdone] { display: none; }
-h2 { letter-spacing: 3px; text-shadow: 2px 2px 0 ${PAL.edge}; }
+h2 { letter-spacing: 1.5px; text-shadow: none; }
+.menu-btn { line-height: 1.35; font-weight: 650; }
+.menu-btn small { font-size: 14px; font-weight: 400; line-height: 1.5; margin-top: 4px; }
+.sub { max-width: 660px; margin: 8px auto 30px; line-height: 1.6; font-style: normal; }
+.menu-principle {
+  max-width: 610px; margin: 30px auto 0; padding: 16px 20px;
+  color: ${PAL.dim}; font-size: 15px; line-height: 1.65;
+  border-left: 3px solid ${PAL.gold}; background: ${PAL.bg1};
+}
+.menu-principle b { color: ${PAL.gold}; font-weight: 650; }
+.howto p { max-width: 640px; margin: 18px auto; line-height: 1.7; }
+.glossary { max-width: 640px; padding: 18px 22px; font-size: 15px; line-height: 1.6; }
+.glossary div { padding: 6px 0; }
+.overlay p { line-height: 1.65; }
 #endturn {
   border-radius: 0; border: none;
   background: ${PAL.gold}; color: ${PAL.edge};
@@ -3008,20 +3016,19 @@ h2 { letter-spacing: 3px; text-shadow: 2px 2px 0 ${PAL.edge}; }
 }
 .hpbar.low .hpfill { animation: hppulse .55s steps(2) infinite; }
 
-/* ---- cards: pixel frames tinted by art ---- */
-.card { border-top: none !important; padding-top: 9px; }
-.card .cname { font-weight: bold; letter-spacing: .5px; }
+/* Card colour marks the art without framing every edge. */
+.card { border-top: 3px solid var(--card-art, ${PAL.dim}) !important; padding-top: 9px; }
+.card .cname { font-weight: 700; letter-spacing: 0; }
 .card.playable:hover { transform: translateY(-4px); }
 
 /* ---- range zones as arcade tabs ---- */
 .zone {
-  border-radius: 0; border: none;
-  box-shadow: inset 1px 1px 0 ${PAL.panelHi}, inset -1px -1px 0 ${PAL.panelLo}, 0 0 0 2px ${PAL.edge};
+  border-radius: 3px; border: 1px solid ${PAL.panelHi}; box-shadow: none;
   background: ${PAL.panel}; text-transform: uppercase; font-variant: normal;
 }
 .zone.on {
-  background: ${PAL.goldLo}; color: ${PAL.goldHi};
-  box-shadow: inset 1px 1px 0 ${PAL.goldHi}, inset -1px -1px 0 ${PAL.edge}, 0 0 0 2px ${PAL.edge};
+  background: #51340d; color: ${PAL.goldHi};
+  border-color: ${PAL.gold}; box-shadow: none;
 }
 
 /* ---- the sprite stage ----
@@ -3039,14 +3046,11 @@ h2 { letter-spacing: 3px; text-shadow: 2px 2px 0 ${PAL.edge}; }
 #stagetoggle {
   display: block; min-height: 44px; margin: 0 0 8px auto;
   padding: 9px 12px; font: inherit; font-size: 12px; letter-spacing: 1px;
-  border: none; background: rgba(8,6,17,.72); color: ${PAL.gold};
+  border: 1px solid ${PAL.panelHi}; background: ${PAL.panel}; color: ${PAL.gold};
   text-transform: uppercase; line-height: 1.4;
-  box-shadow: inset 1px 1px 0 ${PAL.panelHi}, inset -1px -1px 0 ${PAL.panelLo}, 0 0 0 2px ${PAL.edge};
 }
 #arena.stage-hidden #stagetoggle {
   margin: 0 auto 8px;
-  background: ${PAL.panel};
-  box-shadow: inset 1px 1px 0 ${PAL.panelHi}, inset -1px -1px 0 ${PAL.panelLo}, 0 0 0 2px ${PAL.edge};
 }
 
 /* ---- bitmap-rendered banner over the arena ---- */
@@ -3070,8 +3074,7 @@ h2 { letter-spacing: 3px; text-shadow: 2px 2px 0 ${PAL.edge}; }
 #sndbtn {
   position: fixed; right: 10px; bottom: 10px; z-index: 9100;
   padding: 8px 12px; background: ${PAL.panel}; color: ${PAL.gold};
-  border: none; font: inherit; font-size: 13px; letter-spacing: 1px;
-  box-shadow: inset 2px 2px 0 ${PAL.panelHi}, inset -2px -2px 0 ${PAL.panelLo}, 0 0 0 2px ${PAL.edge};
+  border: 1px solid ${PAL.panelHi}; font: inherit; font-size: 13px; letter-spacing: .2px;
 }
 
 @media (prefers-reduced-motion: reduce) {
