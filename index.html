@@ -4,11 +4,11 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Masters of the Way</title>
-<meta name="description" content="Masters of the Way: a martial-arts card battler built from six real arts, each with a genuine mechanical identity. Master one way, or take what works from everywhere.">
+<meta name="description" content="Build a deck from six martial arts and fight for control of the range. Master one style or mix your own.">
 <meta name="theme-color" content="#100e0c">
 <meta name="color-scheme" content="dark">
 <meta property="og:title" content="Masters of the Way">
-<meta property="og:description" content="One-on-one martial arts duels. Six real arts, each with a genuine mechanical identity. Master one way, or take what works from everywhere.">
+<meta property="og:description" content="Six martial arts. One-on-one card duels. Master one style or mix your own.">
 <meta property="og:type" content="website">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -155,25 +155,28 @@
 
   /* hand */
   #handwrap { margin-top: 8px; }
+  #hand-label { color: var(--dim); font-size: 13px; margin: 0 0 6px; }
   #hand { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
   .card {
-    width: 138px; min-height: 148px; background: var(--panel);
+    width: 152px; min-height: 154px; background: var(--panel);
     border: 1px solid var(--border); border-radius: 9px; padding: 7px 9px;
     text-align: left; position: relative; color: var(--ink);
     display: flex; flex-direction: column; transition: transform .15s, border-color .15s, opacity .3s;
     border-top: 3px solid var(--dim);
   }
   .card .top { display: flex; justify-content: space-between; align-items: baseline; gap: 4px; }
-  .card .cname { font-size: 13.5px; line-height: 1.2; }
+  .card .cname { font-size: 14px; line-height: 1.25; font-weight: bold; }
   .card .ccost {
-    font-size: 15px; color: var(--gold); min-width: 18px; height: 22px; text-align: center;
+    font-size: 16px; color: var(--gold); min-width: 30px; text-align: right; white-space: nowrap;
   }
-  .card .cart { font-size: 10.5px; font-variant: small-caps; letter-spacing: 1px; margin: 1px 0 3px; }
-  .card .cranges { font-size: 10.5px; color: var(--dim); margin-bottom: 4px; }
-  .card .ctext { font-size: 12px; color: #c6bca8; flex: 1 1 auto; }
+  .card .cart { font-size: 11px; font-variant: small-caps; letter-spacing: 1px; margin: 3px 0; }
+  .card .cranges { font-size: 11px; color: var(--dim); margin-bottom: 5px; }
+  .card .ctext { font-size: 12.5px; color: #c6bca8; flex: 1 1 auto; }
   .card.playable { cursor: pointer; }
   .card.playable:hover { transform: translateY(-5px); border-color: var(--gold); }
-  .card.dead { opacity: .38; }
+  .card.dead { opacity: .78; cursor: help; }
+  .card.dead .card-reason { color: var(--gold); font-size: 11px; margin-top: 5px; }
+  #card-hint { min-height: 20px; color: var(--gold); font-size: 13px; text-align: center; margin-top: 6px; }
   button.card { font: inherit; }
   #controls { text-align: center; margin-top: 10px; }
   #endturn {
@@ -188,7 +191,7 @@
     font-variant: small-caps; letter-spacing: 1px; font-size: 15px; margin-left: 10px;
   }
   #resetbtn:hover { border-color: var(--gold); color: var(--gold); }
-  #stamina-pips { display: inline-block; margin-left: 12px; letter-spacing: 3px; color: var(--gold); }
+  #stamina-pips { display: block; margin: 0 0 10px; letter-spacing: 2px; color: var(--gold); font-size: 15px; }
 
   /* overlays */
   .overlay {
@@ -285,11 +288,13 @@
     body { font-size: 15px; }
     #duel { padding: 6px 6px 14px; }
     .fpanel { padding: 7px 9px; margin: 5px 0; }
-    .card { width: calc(33.33% - 6px); min-width: 0; min-height: 132px; padding: 6px 7px; }
-    .card .cname { font-size: 11.5px; }
-    .card .ctext { font-size: 10px; }
-    .card .cranges { font-size: 9.5px; }
-    .card .cart { font-size: 9.5px; }
+    #hand { flex-wrap: nowrap; justify-content: flex-start; overflow-x: auto; overscroll-behavior-x: contain;
+      scroll-snap-type: x proximity; padding: 4px 4px 12px; }
+    .card { flex: 0 0 min(44vw, 174px); min-width: 145px; min-height: 166px; padding: 8px 9px; scroll-snap-align: start; }
+    .card .cname { font-size: 13px; }
+    .card .ctext { font-size: 12px; }
+    .card .cranges, .card .cart { font-size: 10.5px; }
+    .card .ccost { font-size: 15px; }
     .zone { font-size: 10.5px; padding: 5px 2px; }
     .zone .who { font-size: 13px; }
     h1 { font-size: 24px; letter-spacing: 4px; }
@@ -302,7 +307,7 @@
     #log { font-size: 12.5px; min-height: 48px; }
     #endturn { width: 100%; padding: 14px 0; font-size: 17px; }
     #resetbtn { width: 100%; margin: 8px 0 0; padding: 12px 0; }
-    #stamina-pips { display: block; margin: 8px 0 0; font-size: 18px; }
+    #stamina-pips { margin: 0 0 10px; font-size: 17px; }
     .pool-row .ptext { display: block; }
   }
   @media (prefers-reduced-motion: reduce) {
@@ -355,14 +360,6 @@
 </head>
 <body>
 
-<footer style="max-width:860px;margin:0 auto;padding:12px 14px;border-bottom:1px solid var(--border);
-  font-size:13px;color:var(--dim);text-align:center">
-  <b style="color:var(--gold);font-weight:normal;font-variant:small-caps;letter-spacing:2px">Masters of the Way</b>
-  · a martial arts card battler built from six real arts: master one way, or take what works from everywhere.
-  Part of <a href="https://peterdsouza247.github.io/pocs/" style="color:var(--gold)">Peter's POCs</a>
-  · <a href="https://peterdsouza247.github.io/pocs/gdds/gdd_masters_of_the_way.html" style="color:var(--dim)">design document</a> · © 2026 Peter Brendan
-</footer>
-
 <div id="app"></div>
 <div id="banner" aria-hidden="true"></div>
 <div id="a11y-live" class="sr-only" role="status" aria-live="assertive"></div>
@@ -398,11 +395,13 @@
   </div>
 
   <div id="handwrap">
+    <div id="hand-label"></div>
     <div id="hand"></div>
+    <div id="card-hint" role="status" aria-live="polite"></div>
     <div id="controls">
+      <div id="stamina-pips" role="status" aria-live="polite"></div>
       <button id="endturn">End Turn</button>
       <button id="resetbtn" style="display:none">Reset stance</button>
-      <span id="stamina-pips"></span>
     </div>
   </div>
 </div>
@@ -598,7 +597,7 @@ const CARDS = [
   { id:"lowkick", name:"Low Kick", art:"muaythai", cost:1, ranges:["close","far"], type:"strike", dmg:2,
     text:"2 dmg. If you already played a Low Kick this turn, Stagger.", fx:{ staggerIfRepeat:true } },
   { id:"elbow", name:"Slashing Elbow", art:"muaythai", cost:2, ranges:["close"], type:"strike", dmg:3,
-    text:"3 dmg. Bleed 2 (1 dmg at the start of their turn, 2 turns).", fx:{ bleed:2 } },
+    text:"3 dmg. Bleed: 2 dmg at the start of each of their next 2 turns.", fx:{ bleed:2 } },
   { id:"knee", name:"Khao Trong", art:"muaythai", cost:2, ranges:["close"], type:"strike", dmg:4,
     text:"Straight knee. 4 dmg. +2 if opponent is Clinched.", fx:{ bonusIfClinch:2 } },
   { id:"clinch", name:"The Plum", art:"muaythai", cost:2, ranges:["close"], type:"grapple",
@@ -895,31 +894,34 @@ function renderHand() {
   const f = M.p[M.active];
   const hand = $("hand");
   hand.innerHTML = "";
+  $("card-hint").textContent = "";
   const show = f.human && !M.over;
   $("handwrap").style.visibility = show ? "visible" : "hidden";
   if (!show) { $("stamina-pips").textContent = ""; return; }
+  $("hand-label").textContent = `Hand · ${f.hand.length} cards${f.hand.length > 1 && window.matchMedia("(max-width: 560px)").matches ? " · swipe to see more" : ""}`;
   f.hand.forEach((id, idx) => {
     const c = CARD[id];
-    const ok = canPlay(f, c);
+    const reason = playBlockReason(f, c);
+    const ok = !reason;
     const b = document.createElement("button");
     b.className = "card " + (ok ? "playable" : "dead");
-    b.style.borderTopColor = ARTS[c.art].color;
+    b.style.setProperty("--card-art", ARTS[c.art].color);
     b.innerHTML =
       `<span class="top"><span class="cname">${c.name}</span><span class="ccost">${c.cost}◈</span></span>` +
       `<span class="cart" style="color:${ARTS[c.art].color}">${ARTS[c.art].name}${c.master ? " ✦" : ""}</span>` +
       `<span class="cranges">${c.ranges.map(cap).join(" · ")}${c.needTop ? " · top" : ""}</span>` +
-      `<span class="ctext">${c.text}</span>`;
-    b.setAttribute("aria-label", `Card ${idx + 1}: ${c.name}, ${ARTS[c.art].name}, cost ${c.cost}. ${c.text} ${ok ? "Playable." : "Not playable now."}`);
-    b.setAttribute("aria-disabled", ok ? "false" : "true");
+      `<span class="ctext">${c.text}</span>` +
+      (ok ? "" : `<span class="card-reason">Why unavailable?</span>`);
+    b.setAttribute("aria-label", `Card ${idx + 1}: ${c.name}, ${ARTS[c.art].name}, cost ${c.cost}. ${c.text} ${ok ? "Playable." : "Unavailable: " + reason + " Activate for explanation."}`);
     if (ok) b.onclick = () => {
       b.onclick = null;
       Sound.resume(); Sound.ui();
       b.classList.add("zoomout");
       setTimeout(() => playCard(f, idx), 170);
-    };
+    }; else b.onclick = () => { $("card-hint").textContent = `${c.name}: ${reason}`; };
     hand.appendChild(b);
   });
-  $("stamina-pips").textContent = "◈".repeat(f.stamina) + "·".repeat(Math.max(0, 5 - f.stamina));
+  $("stamina-pips").textContent = `Stamina ${f.stamina}/5 · ` + "◈".repeat(f.stamina) + "·".repeat(Math.max(0, 5 - f.stamina));
   $("endturn").disabled = false;
   // Reset stance (mulligan): only offered when nothing in hand is playable.
   const rb = $("resetbtn");
@@ -1001,13 +1003,17 @@ function floater(panelId, text, color) {
 /* ================================================================ rules */
 
 function canPlay(f, c) {
-  if (M.over) return false;
-  if (c.cost > f.stamina) return false;
-  if (!c.ranges.includes(M.range)) return false;
+  return !playBlockReason(f, c);
+}
+
+function playBlockReason(f, c) {
+  if (M.over) return "The fight is over.";
+  if (c.cost > f.stamina) return `Needs ${c.cost} stamina; you have ${f.stamina}.`;
+  if (!c.ranges.includes(M.range)) return `Needs ${c.ranges.map(cap).join(" or ")} range; currently ${cap(M.range)}.`;
   const meIdx = M.p.indexOf(f);
-  if (c.needTop && (M.range !== "ground" || M.top !== meIdx)) return false;
-  if (c.fx && (c.fx.takedown || c.fx.takedownIfGrip) && M.range !== "close") return false;
-  return true;
+  if (c.needTop && M.top !== meIdx) return "You need top position on the ground.";
+  if (c.fx && (c.fx.takedown || c.fx.takedownIfGrip) && M.range !== "close") return "A takedown needs Close range.";
+  return null;
 }
 
 function draw(f, n) {
@@ -1432,33 +1438,32 @@ function showMenu() {
   app.style.display = "block";
   app.innerHTML = "";
   const isNew = !loadFights().length && !loadOnboard().tutorialDone;
-  const newHint = isNew ? `<div class="sub" style="color:var(--gold);margin-bottom:14px">New to the dojo? Start with How to Play.</div>` : "";
+  const newHint = isNew ? `<div class="sub" style="color:var(--gold);margin-bottom:14px">First fight? Learn the rules with Rosa.</div>` : "";
   const runs = loadRuns();
   const gauntletSub = runs.best > 0
-    ? `Seven masters, one run. Best streak: ${runs.best}/${GAUNTLET_ORDER.length}${runs.completions ? " · cleared " + runs.completions + "×" : ""}.`
-    : "Seven masters, one run. Heal a little between fights. Lose once and it is over.";
+    ? `Seven opponents, one deck. Best streak: ${runs.best}/${GAUNTLET_ORDER.length}${runs.completions ? " · cleared " + runs.completions + "×" : ""}.`
+    : `Seven opponents, one deck. Recover ${HEAL_BETWEEN} HP between fights. One loss ends the run.`;
   const s = el(`
     <div class="screen">
       <h1>Masters of the Way</h1>
-      <div class="sub">one fight. two philosophies. every art has an answer.</div>
+      <div class="sub">One art or many. The fight belongs to whoever controls the range.</div>
       ${newHint}
-      <button class="menu-btn" id="m-howto">How to Play<small>Learn the rules, then a guided first fight vs Rosa.</small></button>
-      <button class="menu-btn" id="m-fight">Fight<small>Choose your deck, choose your opponent.</small></button>
+      <button class="menu-btn" id="m-howto">How to Play<small>Learn range, stamina, and submissions in a guided duel.</small></button>
+      <button class="menu-btn" id="m-fight">Fight<small>Pick a deck. Choose who stands across from you.</small></button>
       <button class="menu-btn" id="m-gauntlet">The Gauntlet<small>${gauntletSub}</small></button>
-      <button class="menu-btn" id="m-hotseat">Two Players<small>Pass-and-play on this device.</small></button>
-      <button class="menu-btn" id="m-build">Deck Builder<small>Purity brings mastery. Mixing brings options. Choose.</small></button>
-      <button class="menu-btn" id="m-record">Fight Record<small>Review past fights, turn by turn.</small></button>
-      <button class="menu-btn" id="m-profile">Profile<small>${escapeAttr(getProfileName())}'s dojo. Save &amp; carry your decks and stats across devices.</small></button>
+      <button class="menu-btn" id="m-hotseat">Two Players<small>Share a screen, bring separate profiles, fight face to face.</small></button>
+      <button class="menu-btn" id="m-build">Deck Builder<small>Build 20 cards around mastery or a mix of arts.</small></button>
+      <button class="menu-btn" id="m-record">Fight Record<small>Revisit the turns that decided your last 25 fights.</small></button>
+      <button class="menu-btn" id="m-profile">Profile<small>Save ${escapeAttr(getProfileName())}'s decks and record for another device.</small></button>
       <div style="text-align:center;margin-top:6px">
         <button class="back" id="m-settings">settings</button>
         <button class="back" id="m-about">about</button>
       </div>
-      <div style="max-width:520px;margin:22px auto;color:var(--dim);font-size:14px">
-        <b style="color:var(--gold);font-weight:normal">The Way of it:</b>
-        A deck that is three-quarters one art earns that art's <i>mastery passive</i> and its master techniques.
-        A deck that mixes arts draws a bigger hand (4 + one per art) and covers every range,
-        but masters nothing. Control the range: Taekwondo wants Far, Boxing wants Close,
-        Jiu-Jitsu wants you on the floor.
+      <div class="menu-principle">
+        <b>Choose your way.</b>
+        Make at least 75% of your art cards one style to unlock its passive and master techniques. Fundamentals don't count against you.
+        Mix arts for a larger hand and more answers at Far, Close, and Ground.
+        Whichever path you take, control the range or fight on your opponent's terms.
       </div>
     </div>`);
   app.appendChild(s);
@@ -1499,7 +1504,7 @@ function deckPickButton(o, onPick) {
 function showDeckSelect(hotseat, forPlayer = 0, chosen = []) {
   app.innerHTML = "";
   const opts = deckOptions();
-  const who = hotseat ? `Player ${forPlayer + 1}` : "your";
+  const who = hotseat ? `Player ${forPlayer + 1}'s` : "your";
   const s = el(`<div class="screen"><h2>Choose ${who} deck</h2><div id="dl"></div>
     <div style="text-align:center"><button class="back" id="bk">back</button></div></div>`);
   app.appendChild(s);
@@ -1583,7 +1588,7 @@ function renderHotseatSetup() {
   app.innerHTML = "";
   const s = el(`<div class="screen">
     <h2>Two Players</h2>
-    <div class="sub">Each player can load their own profile so their decks travel and their stats update. Player 1 defaults to this device.</div>
+    <div class="sub">Two corners, one screen. Each player can bring a profile and keep their own record. Player 1 starts with this device's profile.</div>
     <div id="seats"></div>
     <div style="text-align:center;margin-top:14px">
       <button class="menu-btn" style="text-align:center;max-width:300px" id="ht-go">Choose decks</button>
@@ -1833,7 +1838,7 @@ function openAbout() {
   Sound.ui();
   const o = el(`<div class="overlay"><div class="obox">
     <h2>Masters of the Way</h2>
-    <p style="color:var(--gold);font-style:italic">v${VERSION}: a martial-arts card battler built from six real arts.</p>
+    <p style="color:var(--gold);font-style:italic">v${VERSION}: build a deck from six martial arts and fight for control of the range.</p>
     <p>© 2026 Peter Brendan. All rights reserved.</p>
     <p><b style="color:var(--ink);font-weight:normal">No data collected.</b> Your decks, fight record, and settings stay in this browser, or in a profile file you choose to export. No accounts, no analytics, no servers.</p>
     <p>No third-party dependencies: all code, artwork, and sound are original or system-provided.</p>
@@ -1861,7 +1866,7 @@ function showGauntletDeckSelect() {
   const opts = deckOptions();
   const s = el(`<div class="screen">
     <h2>The Gauntlet</h2>
-    <div class="sub">Seven masters, in order, one run. You heal ${HEAL_BETWEEN} between fights. Lose once and it is over.</div>
+    <div class="sub">Face seven opponents in order with one deck. Recover ${HEAL_BETWEEN} HP between fights, up to 30. One loss ends the run.</div>
     <div id="dl"></div>
     <div style="text-align:center"><button class="back" id="bk">back</button></div></div>`);
   app.appendChild(s);
@@ -1929,7 +1934,7 @@ function finishGauntlet(completed, retired) {
     ${cleared ? '<div class="kotext" style="color:var(--gold)">CLEARED</div>' : ""}
     <h2>${cleared ? "The Gauntlet falls" : (retired ? "Retired undefeated" : "The run ends")}</h2>
     <p>${cleared
-      ? "All seven masters, one deck, one walk. You are the way."
+      ? "Seven opponents beaten with one deck. You cleared the run."
       : (retired
         ? `You walked away at ${wins} of ${GAUNTLET_ORDER.length}, streak intact.`
         : `You reached ${wins} of ${GAUNTLET_ORDER.length} before the run ended.`)}
@@ -1996,11 +2001,11 @@ function showResult(winner, loser) {
     saveFight(winner, loser);
     const won = winner.human;
     const o = el(`<div class="overlay"><div class="obox">
-      <div class="kotext" style="font-size:34px;color:var(--gold)">${won ? "Lesson learned" : "Good roll"}</div>
+      <div class="kotext" style="font-size:34px;color:var(--gold)">${won ? "Well fought" : "Next round"}</div>
       <h2>Tutorial complete</h2>
       <p>${won
-        ? "You read the range and closed the show. That's the whole game. Now take it to the roster for real."
-        : "Rosa got the better of that one. That's grappling. Survive the bad position, then reverse it. Run it back, or pick a fight on your own terms."}</p>
+        ? "You found your range and finished the fight. Choose an opponent and try your own deck next."
+        : "Rosa won this round. Review where she took control, then try a different line or choose another opponent."}</p>
       <button class="menu-btn" style="text-align:center" id="tut-review">Review the fight</button>
       <button class="menu-btn" style="text-align:center" id="tut-menu">To the dojo</button>
     </div></div>`);
@@ -2031,15 +2036,8 @@ function showResult(winner, loser) {
     <div class="kotext">${M.method}</div>
     <div style="width:74px;margin:0 auto 8px" class="pico">${portraitFor(winner.stats)}</div>
     <h2>${winner.name} wins</h2>
-    <p>${winner.name} by ${M.method.toLowerCase()}, turn ${M.turnNo}. ${loser.name} has nothing left.${winner.persona ? ' "' + winner.persona.quote + '"' : ""}</p>
+    <p>${winner.name} wins by ${M.method.toLowerCase()} on turn ${M.turnNo}.${winner.persona ? ' "' + winner.persona.quote + '"' : ""}</p>
     <button class="menu-btn" style="text-align:center" id="res-review">Review the fight</button>
-    <p style="font-style:italic">"${rnd([
-      "The art was the answer. The fighter was the question.",
-      "Styles make fights. Preparation makes winners.",
-      "Everyone has a plan until the range closes.",
-      "The mat does not lie.",
-      "Respect, touched gloves, and one long walk back to the locker room.",
-    ])}"</p>
     <button class="menu-btn" style="text-align:center" id="res-menu">Back to the dojo</button>
   </div></div>`);
   document.body.appendChild(o);
@@ -2116,6 +2114,7 @@ function showBuilder() {
   let deckName = decks.length ? decks[0].name : "";
   const s = el(`<div class="screen">
     <h2>Deck Builder</h2>
+    <div class="sub">Choose 20 cards. Master one art or build a larger hand by mixing styles.</div>
     <div id="saved-decks"></div>
     <div style="text-align:center;margin:12px 0">
       <input id="deck-name" maxlength="30" placeholder="Deck name, e.g. My Judo Gambit"
@@ -2584,7 +2583,7 @@ function tutorialCheck() {
   if (M.range === "ground" && M.top === 0 && once("top")) return coach("You have top position. Play Pass Guard to gain Control, then a submission like Juji-gatame can end it outright.");
   if (foe.hp <= 8 && foe.hp > 0 && once("tap")) return coach("Rosa is low enough to tap. A submission that leaves her at or below its threshold finishes instantly. You don't have to reach 0 HP.");
   if (me.hp <= 8 && me.hp > 0 && once("lowhp")) return coach("You're hurt. Guard cards absorb the next hits, Create Space resets the range, and Breathe buys back stamina.");
-  if (M.active === 0 && once("turn1")) return coach("Your turn. Greyed-out cards can't be played at the current range. Change range to enable them. Spend up to 3 stamina, then End Turn.");
+  if (M.active === 0 && once("turn1")) return coach("Your turn. An unavailable card may need more stamina, another range, or top position. Tap it to see why. Play what you can, then End Turn.");
 }
 
 function startTutorial() {
@@ -2618,9 +2617,9 @@ function showHowTo() {
     <h2>How to Play</h2>
     <div class="howto">
       <p><b>The goal.</b> Two fighters, 30 HP each. Win by knockout (drop them to 0), or by submission: a sub that leaves them at or below its tap threshold ends the fight on the spot.</p>
-      <p><b>A turn.</b> You draw up to your hand size, then spend up to <b>3 stamina</b> (◈) playing cards (strikes, guards, movement, grapples, submissions), then End Turn. Your Guard resets at the start of each of your own turns, so spend it or lose it.</p>
-      <p><b>Range is the battlefield.</b> Every card is gated to <b>Far</b> (kicking), <b>Close</b> (the pocket), or <b>Ground</b>. Greyed cards can't be played at the current range. Fights are won by dragging the duel into <i>your</i> range: Taekwondo wants Far, Boxing wants Close, Jiu-Jitsu wants the floor. On the ground, <b>top position</b> is everything, and the fighter on top controls the exchange.</p>
-      <p><b>One way, or every way.</b> A deck that's 75% or more of one art earns that art's <b>mastery passive</b> and its master techniques, and combos same-art cards for bonus damage. A mixed deck masters nothing but draws a bigger hand (4 + one per art) and answers every range. Both are viable, and that's the whole argument.</p>
+      <p><b>A turn.</b> Draw up to your hand size and spend your stamina (◈) on strikes, guards, movement, throws, or submissions. You usually start with 3 stamina; some effects change that. Guard absorbs incoming damage and resets at the start of your next turn.</p>
+      <p><b>Range.</b> Cards work at <b>Far</b>, <b>Close</b>, or <b>Ground</b>. Tap an unavailable card to see what it needs. Taekwondo is strongest at Far, Boxing at Close, and Jiu-Jitsu on the Ground. Some ground cards also require <b>top position</b>.</p>
+      <p><b>Build your way.</b> If at least 75% of your non-Fundamentals cards come from one art, you unlock its <b>mastery passive</b> and master techniques. Mixing arts gives you a larger hand (4 + one per art, up to 7). Playing cards from the same art in a row can add combo damage in either kind of deck.</p>
       <div class="glossary"><b>Status effects</b>${glossary.map((g) => `<div><span class="gk">${g[0]}</span>: ${g[1]}</div>`).join("")}</div>
       <p style="text-align:center;font-style:italic;color:var(--dim)">In a duel, hover or long-press any status chip to see what it does.</p>
     </div>
@@ -2761,7 +2760,7 @@ function showProfile() {
   const st = careerStats();
   const s = el(`<div class="screen">
     <h2>Profile</h2>
-    <div class="sub">Your decks, fight record, and stats live in this browser. Save them to a file (or a code) to carry across devices and browsers, to survive a cleared cache, or to bring your decks to a friend's screen for pass-and-play.</div>
+    <div class="sub">Your decks, record, and settings stay in this browser. Export a file or code to keep a backup or load your profile on another device.</div>
     <div style="text-align:center;margin-bottom:6px">
       <input id="prof-name" maxlength="24" value="${escapeAttr(getProfileName())}"
         style="width:100%;max-width:300px;padding:11px 14px;background:var(--panel);border:1px solid var(--border);border-radius:8px;color:var(--ink);font:inherit;text-align:center" aria-label="Fighter name">
@@ -2885,9 +2884,8 @@ window.__MOTW_RETRO__ = true;
 
 /* ================================================================ 1. palette
 
-   A 16-bit console palette. Deeper, more saturated than the original
-   dojo-dark theme, with the hard highlight/shadow pairs that make
-   SNES-era UI read as embossed metal rather than flat CSS.            */
+   A 16-bit console palette. The bright art colours and arena retain
+   the arcade feel while the surrounding interface stays quiet.        */
 
 var PAL = {
   ink:    "#f6f2e2",
@@ -2916,9 +2914,9 @@ var PAL = {
 
 /* ================================================================ 2. stylesheet
 
-   Overrides the game's CSS variables, then adds the arcade furniture:
-   bevelled panels, segmented health bars, a CRT scanline veil, and
-   pixel-snapped rendering for every generated image.                  */
+   Overrides the game's CSS variables, then adds focused arcade details:
+   a strong primary action, segmented health bars, arena scanlines, and
+   pixel-snapped rendering for generated images.                        */
 
 var CSS = `
 :root {
@@ -2930,10 +2928,10 @@ var CSS = `
   --taekwondo:${PAL.taekwondo}; --neutral:${PAL.neutral};
 }
 body {
-  font-family: ui-monospace, "Lucida Console", "Courier New", monospace;
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
   background:
     radial-gradient(ellipse at 50% 0%, ${PAL.bg1} 0%, ${PAL.bg0} 70%) fixed;
-  letter-spacing: .3px;
+  letter-spacing: .1px;
 }
 img, canvas, .bust { image-rendering: pixelated; image-rendering: crisp-edges; }
 
@@ -2942,41 +2940,50 @@ img, canvas, .bust { image-rendering: pixelated; image-rendering: crisp-edges; }
    thing to suspect when scrolling or tapping goes strange, and the
    scanlines only really earn their keep over the pixel art anyway. */
 
-/* ---- bevelled arcade panels ---- */
+/* Let the arena and primary action carry the arcade frame. Other surfaces
+   use a quiet edge so long copy and card effects stay easy to scan. */
 .fpanel, #arena, .menu-btn, .fighter-card, .logview, .card, #builder-stats {
-  border-radius: 0 !important;
-  border: none !important;
-  box-shadow:
-    inset 2px 2px 0 ${PAL.panelHi},
-    inset -2px -2px 0 ${PAL.panelLo},
-    0 0 0 2px ${PAL.edge};
+  border-radius: 4px !important;
+  border: 1px solid ${PAL.panelHi} !important;
+  box-shadow: none;
   background: ${PAL.panel};
 }
-#arena { background: ${PAL.bg1}; position: relative; }
+#arena {
+  background: ${PAL.bg1}; position: relative;
+  border: 2px solid ${PAL.panelHi} !important;
+}
 .fpanel.active {
-  box-shadow:
-    inset 2px 2px 0 ${PAL.goldHi},
-    inset -2px -2px 0 ${PAL.goldLo},
-    0 0 0 2px ${PAL.edge},
-    0 0 14px rgba(255,211,77,.35);
+  border-color: ${PAL.gold} !important;
 }
 .menu-btn:hover, .fighter-card:hover {
   transform: none;
-  box-shadow:
-    inset 2px 2px 0 ${PAL.goldHi},
-    inset -2px -2px 0 ${PAL.goldLo},
-    0 0 0 2px ${PAL.edge};
+  border-color: ${PAL.gold} !important;
 }
 
-/* ---- headings and buttons: chunky, uppercase, hard drop shadow ---- */
+/* Pixel lettering stays on the title and arena banner. Compact headings
+   retain an arcade accent; instructions and controls use readable type. */
 h1, h2, .art-head, #endturn, .frow .style, .card .cart {
+  font-family: ui-monospace, "Lucida Console", "Courier New", monospace;
   font-variant: normal !important;
   text-transform: uppercase;
   font-weight: bold;
 }
 /* only hidden once its bitmap replacement is actually in place */
 h1[data-pixdone] { display: none; }
-h2 { letter-spacing: 3px; text-shadow: 2px 2px 0 ${PAL.edge}; }
+h2 { letter-spacing: 1.5px; text-shadow: none; }
+.menu-btn { line-height: 1.35; font-weight: 650; }
+.menu-btn small { font-size: 14px; font-weight: 400; line-height: 1.5; margin-top: 4px; }
+.sub { max-width: 660px; margin: 8px auto 30px; line-height: 1.6; font-style: normal; }
+.menu-principle {
+  max-width: 610px; margin: 30px auto 0; padding: 16px 20px;
+  color: ${PAL.dim}; font-size: 15px; line-height: 1.65;
+  border-left: 3px solid ${PAL.gold}; background: ${PAL.bg1};
+}
+.menu-principle b { color: ${PAL.gold}; font-weight: 650; }
+.howto p { max-width: 640px; margin: 18px auto; line-height: 1.7; }
+.glossary { max-width: 640px; padding: 18px 22px; font-size: 15px; line-height: 1.6; }
+.glossary div { padding: 6px 0; }
+.overlay p { line-height: 1.65; }
 #endturn {
   border-radius: 0; border: none;
   background: ${PAL.gold}; color: ${PAL.edge};
@@ -3009,26 +3016,25 @@ h2 { letter-spacing: 3px; text-shadow: 2px 2px 0 ${PAL.edge}; }
 }
 .hpbar.low .hpfill { animation: hppulse .55s steps(2) infinite; }
 
-/* ---- cards: pixel frames tinted by art ---- */
-.card { border-top: none !important; padding-top: 9px; }
-.card .cname { font-weight: bold; letter-spacing: .5px; }
+/* Card colour marks the art without framing every edge. */
+.card { border-top: 3px solid var(--card-art, ${PAL.dim}) !important; padding-top: 9px; }
+.card .cname { font-weight: 700; letter-spacing: 0; }
 .card.playable:hover { transform: translateY(-4px); }
 
 /* ---- range zones as arcade tabs ---- */
 .zone {
-  border-radius: 0; border: none;
-  box-shadow: inset 1px 1px 0 ${PAL.panelHi}, inset -1px -1px 0 ${PAL.panelLo}, 0 0 0 2px ${PAL.edge};
+  border-radius: 3px; border: 1px solid ${PAL.panelHi}; box-shadow: none;
   background: ${PAL.panel}; text-transform: uppercase; font-variant: normal;
 }
 .zone.on {
-  background: ${PAL.goldLo}; color: ${PAL.goldHi};
-  box-shadow: inset 1px 1px 0 ${PAL.goldHi}, inset -1px -1px 0 ${PAL.edge}, 0 0 0 2px ${PAL.edge};
+  background: #51340d; color: ${PAL.goldHi};
+  border-color: ${PAL.gold}; box-shadow: none;
 }
 
 /* ---- the sprite stage ----
    Sized in whole multiples of the 256px canvas so the pixels stay
-   square: 1x is 92px tall, 2x is 184px. Small is the default, because
-   the cards are the game and the arena is the garnish. */
+   square: 1x is 92px tall, 2x is 184px. The default size follows
+   viewport width; players can change it and their choice is saved. */
 #stage-wrap {
   position: relative; width: 100%; max-width: 256px; margin: 0 auto 6px;
   box-shadow: 0 0 0 2px ${PAL.edge}; line-height: 0;
@@ -3038,15 +3044,13 @@ h2 { letter-spacing: 3px; text-shadow: 2px 2px 0 ${PAL.edge}; }
 #arena.stage-hidden #stage-wrap { display: none; }
 
 #stagetoggle {
-  position: absolute; top: 0; right: 0; z-index: 2;
-  padding: 3px 7px; font: inherit; font-size: 11px; letter-spacing: 1px;
-  border: none; background: rgba(8,6,17,.72); color: ${PAL.gold};
+  display: block; min-height: 44px; margin: 0 0 8px auto;
+  padding: 9px 12px; font: inherit; font-size: 12px; letter-spacing: 1px;
+  border: 1px solid ${PAL.panelHi}; background: ${PAL.panel}; color: ${PAL.gold};
   text-transform: uppercase; line-height: 1.4;
 }
 #arena.stage-hidden #stagetoggle {
-  position: static; display: block; margin: 0 auto 6px;
-  background: ${PAL.panel};
-  box-shadow: inset 1px 1px 0 ${PAL.panelHi}, inset -1px -1px 0 ${PAL.panelLo}, 0 0 0 2px ${PAL.edge};
+  margin: 0 auto 8px;
 }
 
 /* ---- bitmap-rendered banner over the arena ---- */
@@ -3070,8 +3074,7 @@ h2 { letter-spacing: 3px; text-shadow: 2px 2px 0 ${PAL.edge}; }
 #sndbtn {
   position: fixed; right: 10px; bottom: 10px; z-index: 9100;
   padding: 8px 12px; background: ${PAL.panel}; color: ${PAL.gold};
-  border: none; font: inherit; font-size: 13px; letter-spacing: 1px;
-  box-shadow: inset 2px 2px 0 ${PAL.panelHi}, inset -2px -2px 0 ${PAL.panelLo}, 0 0 0 2px ${PAL.edge};
+  border: 1px solid ${PAL.panelHi}; font: inherit; font-size: 13px; letter-spacing: .2px;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -3082,8 +3085,7 @@ h2 { letter-spacing: 3px; text-shadow: 2px 2px 0 ${PAL.edge}; }
    Vertical space is the scarce resource: the hand has to be reachable
    without scrolling past the fighters. The stage shrinks first. */
 @media (max-width: 560px) {
-  /* the toggle moves out of the corner and gets a real tap target */
-  #stagetoggle { padding: 6px 10px; font-size: 12px; }
+  #stagetoggle { padding: 9px 12px; }
   /* keep the sound button clear of the full-width End Turn button */
   #sndbtn {
     bottom: auto; top: 6px; right: 6px;
@@ -4822,8 +4824,8 @@ Stage.mount = function () {
   /* How big the arena is should be the player's call, not mine. Three
      states, cycled by one button and remembered: small, large, gone. */
   var SIZES = ["sm", "lg", "off"];
-  var LABELS = { sm: "arena · small", lg: "arena · large", off: "arena · off" };
-  var size = "sm";
+  var LABELS = { sm: "Small", lg: "Large", off: "Off" };
+  var size = window.matchMedia("(min-width: 561px)").matches ? "lg" : "sm";
   try {
     var saved = localStorage.getItem("motw-stage-size");
     if (SIZES.indexOf(saved) >= 0) size = saved;
@@ -4836,7 +4838,9 @@ Stage.mount = function () {
   function paint() {
     arena.classList.toggle("stage-lg", size === "lg");
     arena.classList.toggle("stage-hidden", size === "off");
-    tog.textContent = LABELS[size];
+    var next = SIZES[(SIZES.indexOf(size) + 1) % SIZES.length];
+    tog.textContent = "Animation: " + LABELS[size] + " → " + LABELS[next];
+    tog.setAttribute("aria-label", "Animation window is " + LABELS[size] + ". Activate to switch to " + LABELS[next] + ".");
     self.visible = size !== "off";
   }
 
