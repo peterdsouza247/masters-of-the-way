@@ -191,7 +191,7 @@
     font-variant: small-caps; letter-spacing: 1px; font-size: 15px; margin-left: 10px;
   }
   #resetbtn:hover { border-color: var(--gold); color: var(--gold); }
-  #stamina-pips { display: inline-block; margin-left: 12px; letter-spacing: 3px; color: var(--gold); }
+  #stamina-pips { display: block; margin: 0 0 10px; letter-spacing: 2px; color: var(--gold); font-size: 15px; }
 
   /* overlays */
   .overlay {
@@ -307,7 +307,7 @@
     #log { font-size: 12.5px; min-height: 48px; }
     #endturn { width: 100%; padding: 14px 0; font-size: 17px; }
     #resetbtn { width: 100%; margin: 8px 0 0; padding: 12px 0; }
-    #stamina-pips { display: block; margin: 8px 0 0; font-size: 18px; }
+    #stamina-pips { margin: 0 0 10px; font-size: 17px; }
     .pool-row .ptext { display: block; }
   }
   @media (prefers-reduced-motion: reduce) {
@@ -399,9 +399,9 @@
     <div id="hand"></div>
     <div id="card-hint" role="status" aria-live="polite"></div>
     <div id="controls">
+      <div id="stamina-pips" role="status" aria-live="polite"></div>
       <button id="endturn">End Turn</button>
       <button id="resetbtn" style="display:none">Reset stance</button>
-      <span id="stamina-pips"></span>
     </div>
   </div>
 </div>
@@ -921,7 +921,7 @@ function renderHand() {
     }; else b.onclick = () => { $("card-hint").textContent = `${c.name}: ${reason}`; };
     hand.appendChild(b);
   });
-  $("stamina-pips").textContent = "◈".repeat(f.stamina) + "·".repeat(Math.max(0, 5 - f.stamina));
+  $("stamina-pips").textContent = `Stamina ${f.stamina}/5 · ` + "◈".repeat(f.stamina) + "·".repeat(Math.max(0, 5 - f.stamina));
   $("endturn").disabled = false;
   // Reset stance (mulligan): only offered when nothing in hand is playable.
   const rb = $("resetbtn");
