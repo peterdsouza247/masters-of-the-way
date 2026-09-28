@@ -355,14 +355,6 @@
 </head>
 <body>
 
-<footer style="max-width:860px;margin:0 auto;padding:12px 14px;border-bottom:1px solid var(--border);
-  font-size:13px;color:var(--dim);text-align:center">
-  <b style="color:var(--gold);font-weight:normal;font-variant:small-caps;letter-spacing:2px">Masters of the Way</b>
-  · a martial arts card battler built from six real arts: master one way, or take what works from everywhere.
-  Part of <a href="https://peterdsouza247.github.io/pocs/" style="color:var(--gold)">Peter's POCs</a>
-  · <a href="https://peterdsouza247.github.io/pocs/gdds/gdd_masters_of_the_way.html" style="color:var(--dim)">design document</a> · © 2026 Peter Brendan
-</footer>
-
 <div id="app"></div>
 <div id="banner" aria-hidden="true"></div>
 <div id="a11y-live" class="sr-only" role="status" aria-live="assertive"></div>
@@ -3027,8 +3019,8 @@ h2 { letter-spacing: 3px; text-shadow: 2px 2px 0 ${PAL.edge}; }
 
 /* ---- the sprite stage ----
    Sized in whole multiples of the 256px canvas so the pixels stay
-   square: 1x is 92px tall, 2x is 184px. Small is the default, because
-   the cards are the game and the arena is the garnish. */
+   square: 1x is 92px tall, 2x is 184px. The default size follows
+   viewport width; players can change it and their choice is saved. */
 #stage-wrap {
   position: relative; width: 100%; max-width: 256px; margin: 0 auto 6px;
   box-shadow: 0 0 0 2px ${PAL.edge}; line-height: 0;
@@ -4823,7 +4815,7 @@ Stage.mount = function () {
      states, cycled by one button and remembered: small, large, gone. */
   var SIZES = ["sm", "lg", "off"];
   var LABELS = { sm: "arena · small", lg: "arena · large", off: "arena · off" };
-  var size = "sm";
+  var size = window.matchMedia("(min-width: 561px)").matches ? "lg" : "sm";
   try {
     var saved = localStorage.getItem("motw-stage-size");
     if (SIZES.indexOf(saved) >= 0) size = saved;
@@ -4837,6 +4829,7 @@ Stage.mount = function () {
     arena.classList.toggle("stage-lg", size === "lg");
     arena.classList.toggle("stage-hidden", size === "off");
     tog.textContent = LABELS[size];
+    tog.setAttribute("aria-label", "Animation window: " + LABELS[size] + ". Activate to change size.");
     self.visible = size !== "off";
   }
 
