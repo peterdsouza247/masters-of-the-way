@@ -2,6 +2,14 @@
 
 **Play:** https://peterdsouza247.github.io/masters-of-the-way/
 
+**Roadmap:** [Browser playtest to a possible desktop and Android release](ROADMAP.md).
+
+**itch.io upload:** run `python scripts/build_itch.py` to create
+`dist/masters-of-the-way-itch.zip`. The ZIP contains only `index.html` at its
+root. The [launch kit](itch_launch_kit/itch-launch-kit.md) has the page copy,
+artwork sources and embed checks. Keep the itch page in Draft until a full
+match and profile export/import have been tested in its embedded player.
+
 One-on-one martial arts duels where decks are built from six real arts, each with a genuine mechanical identity drawn from how the art actually works. The central tension is the oldest argument in martial arts: master one way, or take what works from everywhere. Both are viable. Neither is free.
 
 ## Game Design Document
