@@ -37,13 +37,14 @@ Grouped so you can work top to bottom. Based on itch.io's Content Creator Qualit
 
 ### 2. Upload the game (HTML5 specifics)
 
-- [ ] Zip the game so that **`index.html` is at the root of the zip** (not inside a subfolder). Since the whole game is a single file, the zip contains just `index.html`.
+- [ ] Run `python scripts/build_itch.py` at the repository root. Upload `dist/masters-of-the-way-itch.zip`; it contains **`index.html` at the root**.
 - [ ] Upload the zip, then tick **"This file will be played in the browser."**
 - [ ] Set the embed **viewport size**. The game is responsive up to about 900px wide; try roughly **960 x 720** and adjust after previewing.
 - [ ] Enable **"Mobile friendly"** (the game supports touch and 3-across cards on phones).
 - [ ] Enable the **"Fullscreen button"** so players get the full board.
 - [ ] Upload your files **directly to itch.io**. Do not just link out to another host or store.
 - [ ] Preview the embedded game and play one full match to confirm it runs inside itch's iframe.
+- [ ] Export a profile, reload the itch page, then import the file. Check that decks and fight history survive. Try a second browser or device too.
 
 Notes specific to this build:
 - Saves (decks, record, settings) live in the browser's storage on itch's game domain, so they persist per browser. The in-game **Profile export** is the backup and cross-device path; mention it in your description.
@@ -54,6 +55,7 @@ Notes specific to this build:
 - [ ] Add a **cover image**. This is the first thing people see when browsing. Recommended size **630 x 500** (minimum 315 x 250). An animated GIF is allowed and grabs attention.
 - [ ] Make sure the cover has **no seizure-inducing flashing** (the game itself already supports reduced motion).
 - [ ] Add **screenshots** (a duel with the range zones and hand, the deck builder, the Gauntlet ladder, and the fighter roster are all good picks). GIFs of a KO or a takedown work well here too.
+- [ ] The existing `itch-ss-*.svg` files are illustrative launch artwork. Capture actual gameplay for the screenshot gallery before making the page public.
 - [ ] Do not use a misleading or unrepresentative image.
 
 ### 4. Metadata and classification (be accurate, do not over-tag)
@@ -61,6 +63,7 @@ Notes specific to this build:
 - [ ] **Kind of project:** Game.
 - [ ] **Platform / release type:** since the game runs in the browser, do **NOT** tick Windows, macOS, Linux, or Android. Those are only for downloadable executables. HTML5 is handled by the "played in the browser" upload, not a platform checkbox.
 - [ ] **Pricing:** Free, or "No payments," or pay-what-you-want with a 0 minimum. (Do not set a fake price to fake a sale later.)
+- [ ] HTML5 browser games can take payments as donations on itch, not charge for browser access. Leave payments off unless the account and legal ability to receive them are settled.
 - [ ] **Genre:** Card Game (secondary: Strategy).
 - [ ] **Tags:** use a few **relevant, suggested** tags, not synonyms and not your own name/title. Good candidates: `deckbuilding`, `card-battler`, `martial-arts`, `1v1`, `singleplayer`, `local-multiplayer`, `pvp`, `turn-based`, `mobile-friendly`, `pixel`-free (skip that one). Pick maybe 6 to 10 that actually fit.
 - [ ] **Multiplayer:** set Local multiplayer / pass-and-play in the multiplayer section rather than as a tag.
@@ -81,6 +84,7 @@ Notes specific to this build:
 - [ ] Include the honest selling points: **no data collected, no accounts, no third-party dependencies**, and that progress can be exported as a portable profile file.
 - [ ] Add a short **credits** line and your contact (peterbrendanwrites@gmail.com), and note the license (all rights reserved, personal play).
 - [ ] Link the design document if you want, but keep the main call to action "Play now."
+- [ ] Link the [public roadmap](../ROADMAP.md); its future platforms are possibilities, not promised release dates.
 
 ### 7. After publishing (community, promotion, honesty)
 
